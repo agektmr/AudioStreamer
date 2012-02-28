@@ -1,0 +1,47 @@
+body {
+  padding: 50px;
+  font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
+}
+
+a {
+  color: #00B7FF;
+}
+
+p {
+  margin:0;
+}
+
+input#text {
+  width:300px;
+}
+
+div#player {
+  margin: 10px 0;
+  padding: 5px 10px;
+  border: dotted 1px gray;
+  -webkit-box-orient: horizontal;
+  -webkit-box-pack: justify;
+}
+
+div#dropper {
+}
+
+div#visualizer {
+  border: 1px solid #eee;
+  width: 600px;
+  height:150px;
+}
+
+div#conversation {
+  -webkit-box-orient: horizontal;
+  -webkit-box-pack: justify;
+}
+
+ul#msg {
+  display:inline-block;
+}
+
+div#listener {
+  width:600px;
+  height:150px;
+}

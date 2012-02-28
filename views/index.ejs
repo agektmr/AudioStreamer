@@ -1,0 +1,27 @@
+<header>
+  <h1>Audio Stream Experiment</h1>
+</header>
+<section>
+  <div id="connection">
+    Your name: <input type="text" id="name" value="" />
+    <input type="button" id="connect" value="connect" />
+  </div>
+  <div id="player" style="display:none;">
+    <div id="dropper">
+      <p>Drop audio file here</p>
+      <input type="button" id="play_stop" value="play" disabled="disabled" />
+    </div>
+    <div id="visualizer">
+    </div>
+  </div>
+  <div id="message" style="display:none;">
+    Message: <input type="text" id="text" value="" />
+    <input type="button" id="send_text" value="send message" />
+  </div>
+  <div id="conversation">
+    <ul id="msg"></ul>
+    <div id="listener"></div>
+  </div>
+</section>
+<footer>
+</footer>

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+    <script src="js/AudioStreamer.js"></script>
+    <script src="js/SpectrumVisualizer.js"></script>
+    <script>
+      var WS_HOST = 'ws://localhost:3000',
+          as = null;
+          playEnd = function() {
+            if (as.audioReady) {
+              as.play();
+            };
+          };
+      window.onload = function() {
+        var playerVisualizer = new SpectrumVisualizer($('#visualizer').get(0), 600, 150);
+        var listenerVisualizer = new SpectrumVisualizer($('#listener').get(0), 600, 150);
+        $('#connect').click(function() {
+          if (!as) {
+            // connect
+            as = new AudioStreamer(WS_HOST, listenerVisualizer, function() {
+              as.onctrlmsg = function(msg) {
+                var li = $('<li/>').html(msg);
+                $('#msg').prepend(li);
+              };
+              as.nameSelf($('#name').val() || 'No Name');
+              $('#name').attr('disabled', 'disabled');
+              $('#message').show();
+              $('#player').css('display', '-webkit-box');
+              $('#connect').val('disconnect');
+            });
+          } else {
+            // disconnect
+            as.disconnect();
+            as = null;
+            $('#name').attr('disabled', null);
+            $('#message').hide();
+            $('#player').hide();
+            $('#connect').val('connect');
+          }
+        });
+        $('#send_text').click(function() {
+          as.sendText($('#text').val());
+        })
+        $('#play_stop').click(playEnd);
+
+        var player = $('#player').get(0);
+        player.ondragenter = function(e) {
+          $('#player').css('backgroundColor', '#eee');
+        };
+        player.ondragleave = function(e) {
+          $('#player').css('backgroundColor', '#fff');
+        };
+        player.ondragover = function(e) {
+          e.preventDefault();
+        };
+        player.ondrop = function(e) {
+          $('#player').css('backgroundColor', '#fff');
+          var file = e.dataTransfer.files[0];
+          as.loadAudio(file, playerVisualizer, function() {
+            as.onPlayEnd = playEnd;
+            $('#play_stop').attr('disabled', null);
+          });
+        };
+      }
+    </script>
+  </head>
+  <body>
+  <%- body %>
+  </body>
+</html>
