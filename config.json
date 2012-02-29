@@ -1,4 +1,3 @@
-/* Configuration file for SmartMachine( http://no.de/ or http://node-ninja.com/ ) */
 {
   "version": "v0.6.10",
   "npm": true
