@@ -82,11 +82,13 @@ app.listen(3000, function() {
       }
     })
     ws.on('close', function() {
-      console.log('listener closed the connection.');
+      console.log(name+' closed the connection.');
       for (var i = 0; i < listeners.length; i++) {
         if (listeners[i] == ws) {
           listeners.splice(i, 1);
           break;
+        } else {
+          listeners[i].send(name+' closed the connection.');
         }
       }
     });
