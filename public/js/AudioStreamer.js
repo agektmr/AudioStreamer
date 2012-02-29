@@ -106,6 +106,9 @@ var AudioStreamer = (function() {
     ws_host = host;
     listenerBuffer[0] = [];
     listenerBuffer[1] = [];
+    this.audioReady = false;
+    this.onctrlmsg = null;
+    this.heartbeat = null;
 
     this.listener = new WebSocket(ws_host+'/listen');
     this.listener.onopen = function() {
@@ -114,6 +117,7 @@ var AudioStreamer = (function() {
       if (typeof callback == 'function') {
         callback();
       };
+      that.heartbeat = setInterval(as.sendHeartBeat.bind(that), 30 * 1000);
     };
     this.listener.onmessage = function(msg) {
       if (typeof msg.data == 'string' && typeof that.onctrlmsg == 'function') {
@@ -134,6 +138,7 @@ var AudioStreamer = (function() {
       }
     };
     this.listener.onclose = function() {
+      clearInterval(that.heartbeat);
       console.debug('listner closed.');
     };
     this.listener.onerror = function() {
@@ -151,6 +156,9 @@ var AudioStreamer = (function() {
     sendText: function(text) {
       this.listener.send(text);
     },
+    sendHeartBeat: function() {
+      this.listener.send('heartbeat');
+    },
     loadAudio: function(file, visualizer, callback) {
       var that = this;
       var reader = new FileReader();
@@ -162,13 +170,13 @@ var AudioStreamer = (function() {
             console.debug('player established.');
           };
           that.player.onmessage = function() {
-           console.debug('message'); 
+           console.debug('player received a message.'); 
           };
           that.player.onclose = function() {
-           console.debug('close'); 
+           console.debug('player closed.'); 
           };
           that.player.onerror = function() {
-           console.debug('error'); 
+           console.debug('player error.'); 
           };
           that.audioPlayer = new AudioPlayer();
           that.audioPlayer.load(buffer, visualizer, that.player);
@@ -200,9 +208,7 @@ var AudioStreamer = (function() {
         this.player.close();
         console.debug('player disconnected.');
       };
-    },
-    onctrlmsg: null,
-    audioReady: false
+    }
   };
 
   return function(host, visualizer, callback) {

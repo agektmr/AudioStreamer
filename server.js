@@ -67,6 +67,10 @@ app.listen(3000, function() {
     listeners.push(ws);
     console.log('listener opened a connection.');
     ws.on('message', function(message) {
+      if (message == 'heartbeat') {
+        console.log('received heartbeat.');
+        return;
+      }
       console.log('received a message: "'+message+'"');  
       for (var i = 0; i < listeners.length; i++) {
         if (name == '') {

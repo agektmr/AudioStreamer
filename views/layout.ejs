@@ -9,11 +9,6 @@
     <script>
       var WS_HOST = window.location.href.replace(/(http|https)(:\/\/.*?)\//, 'ws$2');
           as = null;
-          playEnd = function() {
-            if (as.audioReady) {
-              as.play();
-            };
-          };
       window.onload = function() {
         var playerVisualizer = new SpectrumVisualizer($('#visualizer').get(0), 600, 150);
         var listenerVisualizer = new SpectrumVisualizer($('#listener').get(0), 600, 150);
@@ -44,7 +39,9 @@
         $('#send_text').click(function() {
           as.sendText($('#text').val());
         })
-        $('#play_stop').click(playEnd);
+        $('#play_stop').click(function() {
+          as.play();
+        });
 
         var player = $('#player').get(0);
         player.ondragenter = function(e) {
@@ -60,7 +57,6 @@
           $('#player').css('backgroundColor', '#fff');
           var file = e.dataTransfer.files[0];
           as.loadAudio(file, playerVisualizer, function() {
-            as.onPlayEnd = playEnd;
             $('#play_stop').attr('disabled', null);
           });
         };
