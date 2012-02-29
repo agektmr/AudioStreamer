@@ -20,10 +20,14 @@ app.configure(function(){
 });
 
 app.configure('development', function(){
+  var WS_HOST = 'ws://localhost:3000';
+  var HOST_PORT = '3000';
   app.use(express.errorHandler({ dumpExceptions: true, showStack: true })); 
 });
 
 app.configure('production', function(){
+  var WS_HOST = 'ws://agektmr.node-ninja.com';
+  var HOST_PORT = '80';
   app.use(express.errorHandler()); 
 });
 
@@ -34,7 +38,7 @@ app.get('/', routes.index);
 
 var listeners = [],
     players = [];
-app.listen(3000, function() {
+app.listen(HOST_PORT, function() {
   var wsp = new WebSocketServer({server:app, path:'/play'});
   var wsl = new WebSocketServer({server:app, path:'/listen'});
   wsp.on('connection', function(ws) {

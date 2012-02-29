@@ -7,7 +7,7 @@
     <script src="js/AudioStreamer.js"></script>
     <script src="js/SpectrumVisualizer.js"></script>
     <script>
-      var WS_HOST = 'ws://localhost:3000',
+      var WS_HOST = '<% = WS_HOST %>',
           as = null;
           playEnd = function() {
             if (as.audioReady) {
