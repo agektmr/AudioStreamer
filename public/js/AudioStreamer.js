@@ -1,7 +1,7 @@
 var AudioStreamer = (function() {
   var listenerBuffer = [[], []],
       BUFFER_LENGTH = 2048,
-      ws_host = 'ws://localhost:3000',
+      ws_host = window.location.href.replace(/(http|https)(:\/\/.*?)\//, 'ws$2'),
       ac = new webkitAudioContext();
 
   var AudioPlayer = function() {
