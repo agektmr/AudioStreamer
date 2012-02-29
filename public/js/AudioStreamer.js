@@ -9,12 +9,24 @@ var AudioStreamer = (function() {
     this.type = 'Listener';
     this.audioBuffer = [[], []];
     this.isPlaying = false;
-    this.trailing = 0; // Stop playing a few audioprocess after decay
 
     this.js = ac.createJavaScriptNode(BUFFER_LENGTH, 2, 2);
     this.js.onaudioprocess = function(event) {
       var l = that.audioBuffer[0].shift() || new Float32Array(BUFFER_LENGTH);
       var r = that.audioBuffer[1].shift() || new Float32Array(BUFFER_LENGTH);
+      event.outputBuffer.getChannelData(0).set(l);
+      event.outputBuffer.getChannelData(1).set(r);
+      that.visualize();
+    };
+
+    this.analyser = ac.createAnalyser();
+    this.analyser.smoothingTimeConstant = 0.3;
+
+    this.trailing = 0; // Stop playing a few audioprocess after decay
+    this.processor = ac.createJavaScriptNode(BUFFER_LENGTH, 2, 2);
+    this.processor.onaudioprocess = function(event) {
+      var l = event.inputBuffer.getChannelData(0);
+      var r = event.inputBuffer.getChannelData(1);
       if (that.type == 'Player') {
         if (that.audioBuffer[0].length == 0) {
           if (that.trailing++ > 3) {
@@ -30,15 +42,12 @@ var AudioStreamer = (function() {
             buffer[BUFFER_LENGTH+i] = r[i];
           }
           that.socket.send(buffer.buffer);
-        }
+        } 
+        return;
       }
       event.outputBuffer.getChannelData(0).set(l);
       event.outputBuffer.getChannelData(1).set(r);
-      that.visualize();
-    };
-
-    this.analyser = ac.createAnalyser();
-    this.analyser.smoothingTimeConstant = 0.3;
+    }
   };
   AudioPlayer.prototype = {
     load: function(source, visualizer, socket) {
@@ -64,11 +73,13 @@ var AudioStreamer = (function() {
     },
     listen: function() {
       this.js.connect(this.analyser);
-      this.analyser.connect(ac.destination);
+      this.analyser.connect(this.processor);
+      this.processor.connect(ac.destination);
     },
     play: function() {
       this.js.connect(this.analyser);
-      this.analyser.connect(ac.destination);
+      this.analyser.connect(this.processor);
+      this.processor.connect(ac.destination);
       for (var i = 0; i < this.source[0].length; i++) {
         this.audioBuffer[0][i] = this.source[0][i];
         this.audioBuffer[1][i] = this.source[1][i];
@@ -78,6 +89,7 @@ var AudioStreamer = (function() {
     stop: function() {
       this.js.disconnect();
       this.analyser.disconnect();
+      this.processor.disconnect();
       this.isPlaying = false;
     },
     visualize: function(that) {

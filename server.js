@@ -47,7 +47,6 @@ app.listen(3000, function() {
       };
       for (var i = 0; i < listeners.length; i++) {
         // if (listeners[i] == ws) continue;
-        if (i == 0) continue;
         listeners[i].send(binary, {binary:true, mask:false});
       };
     });
