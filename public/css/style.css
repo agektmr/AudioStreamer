@@ -39,7 +39,6 @@ div#conversation {
 
 ul#msg {
   display:inline-block;
-  word-wrap: break-word;
 }
 
 div#listener {
