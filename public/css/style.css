@@ -27,14 +27,17 @@ div#dropper {
 }
 
 div#visualizer {
-  border: 1px solid #eee;
+  border: 1px solid #aaa;
   width: 600px;
   height:150px;
 }
 
 div#conversation {
   -webkit-box-orient: horizontal;
-  -webkit-box-pack: justify;
+}
+
+div#attendee {
+  width:150px;
 }
 
 ul#msg {

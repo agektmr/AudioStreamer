@@ -10,18 +10,16 @@
       var WS_HOST = window.location.href.replace(/(http|https)(:\/\/.*?)\//, 'ws$2');
           as = null;
       window.onload = function() {
-        var playerVisualizer = new SpectrumVisualizer($('#visualizer').get(0), 600, 150);
-        var listenerVisualizer = new SpectrumVisualizer($('#listener').get(0), 600, 150);
         $('#connect').click(function() {
           if (!as) {
             // connect
-            as = new AudioStreamer(WS_HOST, listenerVisualizer, function() {
+            as = new AudioStreamer(WS_HOST, function() {
               as.onctrlmsg = function(msg) {
                 if (msg.type == 'connection') {
                   $('#attendees').empty();
                   for (var i = 0; i < msg.message.length; i++) {
-                    var span = $('<span/>').text(msg.message[i].name+', ');
-                    $('#attendees').prepend(span);
+                    var li = $('<li/>').text(msg.message[i].name);
+                    $('#attendees').prepend(li);
                   }
                 } if (msg.type == 'message') {
                   var li = $('<li/>').text(msg.name+': '+msg.message);
@@ -68,7 +66,8 @@
         player.ondrop = function(e) {
           $('#player').css('backgroundColor', '#fff');
           var file = e.dataTransfer.files[0];
-          as.loadAudio(file, playerVisualizer, function() {
+          $('#play_stop').attr('disabled', 'disabled');
+          as.updatePlayer(file, function() {
             $('#play_stop').attr('disabled', null);
           });
         };

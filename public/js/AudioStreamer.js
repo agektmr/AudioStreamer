@@ -149,8 +149,9 @@ var AudioStreamer = (function() {
       ws_host = window.location.href.replace(/(http|https)(:\/\/.*?)\//, 'ws$2'),
       ac = new webkitAudioContext();
 
-  var AudioPlayer = function() {
+  var AudioPlayer = function(destination) {
     var that = this;
+    this.destination = destination;
     this.type = 'Listener';
     this.audioBuffer = [[], []];
     this.isPlaying = false;
@@ -180,16 +181,12 @@ var AudioStreamer = (function() {
       for (var i = 0; i < buffers.length; i++) {
         event.outputBuffer.getChannelData(i).set(buffers[i]);
       }
-      that.visualize();
     };
-
-    this.analyser = ac.createAnalyser();
-    this.analyser.smoothingTimeConstant = 0.3;
   };
   AudioPlayer.prototype = {
-    load: function(source, visualizer, socket) {
+    load: function(source, socket) {
       // stock audio source to source as array of arraybuffers
-      this.visualizer = visualizer || null;
+      // this.visualizer = visualizer || null;
       this.socket = socket || null;
       if (source.getChannelData) {
         this.source = [];
@@ -209,12 +206,10 @@ var AudioStreamer = (function() {
       }
     },
     listen: function() {
-      this.js.connect(this.analyser);
-      this.analyser.connect(ac.destination);
+      this.js.connect(this.destination);
     },
     play: function() {
-      this.js.connect(this.analyser);
-      this.analyser.connect(ac.destination);
+      this.js.connect(this.destination);
       for (var i = 0; i < this.source[0].length; i++) {
         this.audioBuffer[0][i] = this.source[0][i];
         this.audioBuffer[1][i] = this.source[1][i];
@@ -223,19 +218,11 @@ var AudioStreamer = (function() {
     },
     stop: function() {
       this.js.disconnect();
-      this.analyser.disconnect();
       this.isPlaying = false;
-    },
-    visualize: function(that) {
-      if (typeof this.visualizer != null) {
-        var freqByteData = new Uint8Array(this.analyser.frequencyBinCount);
-        this.analyser.getByteFrequencyData(freqByteData);
-        this.visualizer.draw(freqByteData);
-      }
     }
   };
 
-  var AudioStreamer = function(host, visualizer, callback) {
+  var AudioStreamer = function(host, callback) {
     var that = this;
     ws_host = host;
     listenerBuffer = [[],[]];
@@ -246,15 +233,15 @@ var AudioStreamer = (function() {
     this.websocket = new WebSocket(ws_host+'/socket');
     this.websocket.onopen = function() {
       that.websocket.binaryType = 'arraybuffer';
-      console.debug('listner established.');
+      console.debug('socket established.');
       if (typeof callback == 'function') {
         callback();
       };
       that.heartbeat = setInterval(as.sendHeartBeat.bind(that), 30 * 1000);
     };
     this.websocket.onmessage = function(req) {
-console.debug(req.data);
       if (typeof req.data == 'string' && typeof that.onctrlmsg == 'function') {
+console.debug(req.data);
         // string
         var msg = MessageGenerator.parseMessage(req.data);
         if (msg.type == 'connected') {
@@ -272,7 +259,6 @@ console.debug(req.data);
         for (var ch = 0; ch < msg.ch_num; ch++) {
           listenerBuffer[ch].push(msg.buffer_array[ch]);
         }
-        console.debug('listener received a message');
       }
     };
     this.websocket.onclose = function() {
@@ -282,10 +268,19 @@ console.debug(req.data);
     this.websocket.onerror = function() {
       console.error('listner error.');
     };
-    this.audioListener = new AudioPlayer();
-    this.audioListener.load(listenerBuffer, visualizer);
+    // TODO: move visual element to outside
+    this.audioMerger = ac.createChannelMerger();
+    this.audioListener = new AudioPlayer(this.audioMerger);
+    this.audioListener.load(listenerBuffer);
     this.audioListener.listen();
     this.player = null;
+    // TODO: move visual element to outside
+    var visualizer = new SpectrumVisualizer(ac, {
+      elem: document.getElementById('visualizer'),
+      width: 600,
+      height: 150
+    });
+    visualizer.connect(this.audioMerger, ac.destination);
   };
   AudioStreamer.prototype = {
     nameSelf: function(name) {
@@ -301,14 +296,14 @@ console.debug(req.data);
       var msg = MessageGenerator.createMessage('heartbeat');
       this.websocket.send(msg);
     },
-    loadAudio: function(file, visualizer, callback) {
+    updatePlayer: function(file, callback) {
       var that = this;
       var reader = new FileReader();
       reader.onload = function(e) {
         ac.decodeAudioData(e.target.result, function(buffer) {
           that.audioReady = true;
-          that.audioPlayer = new AudioPlayer();
-          that.audioPlayer.load(buffer, visualizer, that.websocket);
+          that.audioPlayer = new AudioPlayer(that.audioMerger);
+          that.audioPlayer.load(buffer, that.websocket);
           callback();
         }, function() {
           errorCallback('failed to load audio.');
@@ -331,16 +326,16 @@ console.debug(req.data);
     disconnect: function() {
       if (this.websocket.close) {
         this.websocket.close();
-        console.debug('listener disconnected.');
+        console.debug('socket disconnected.');
       };
       if (this.player && this.player.close) {
         this.player.close();
-        console.debug('player disconnected.');
+        console.debug('socket disconnected.');
       };
     }
   };
 
-  return function(host, visualizer, callback) {
-    return new AudioStreamer(host, visualizer, callback);
+  return function(host, callback) {
+    return new AudioStreamer(host, callback);
   };
 })();

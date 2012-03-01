@@ -7,10 +7,6 @@
     <input type="button" id="connect" value="connect" />
   </div>
   <div>
-    <div>
-      <span>attendees:</span>
-      <div id="attendees"></div>
-    </div>
     <div id="player" style="display:none;">
       <div id="dropper">
         <p>Drop audio file here</p>
@@ -20,12 +16,17 @@
       </div>
     </div>
   </div>
-  <div id="message" style="display:none;">
-    Message: <input type="text" id="text" value="" />
-  </div>
   <div id="conversation" style="display:none;">
-    <ul id="msg"></ul>
-    <div id="listener"></div>
+    <div id="attendee">
+      <span>attendees:</span>
+      <ul id="attendees"></ul>
+    </div>
+    <div>
+      <div id="message" style="display:none;">
+        Message: <input type="text" id="text" value="" />
+      </div>
+      <ul id="msg"></ul>
+    </div>
   </div>
 </section>
 <footer>
