@@ -8,11 +8,15 @@
  */
 var SpectrumVisualizer = function(audioContext, params) {
   this.ac = audioContext;
-  var canvas = document.createElement('canvas');
+  if (params.elem.querySelector('canvas')) {
+    var canvas = params.elem.querySelector('canvas');
+  } else {
+    var canvas = document.createElement('canvas');
+    params.elem.appendChild(canvas);
+  }
   canvas.setAttribute('width', params.width || 400);
   canvas.setAttribute('height', params.height || 200);
   this.cc = canvas.getContext('2d');
-  params.elem.appendChild(canvas);
 
   this.width = parseInt(canvas.width);
   this.height = parseInt(canvas.height);

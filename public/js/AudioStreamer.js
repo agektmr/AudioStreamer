@@ -153,7 +153,7 @@ var AudioStreamer = (function() {
       BUFFER_LENGTH = 2048,
       ws_host = window.location.href.replace(/(http|https)(:\/\/.*?)\//, 'ws$2'),
       ac = null
-  if (webkitAudioContext) {
+  if (window.webkitAudioContext) {
     ac = new webkitAudioContext();
   } else {
     alert('You need Chrome to play with this demo');
@@ -278,10 +278,10 @@ console.debug(req.data);
     };
     this.websocket.onclose = function() {
       clearInterval(that.heartbeat);
-      console.debug('listner closed.');
+      alert('connection closed.');
     };
     this.websocket.onerror = function() {
-      console.error('listner error.');
+      alert('connection error.');
     };
     // TODO: move visual element to outside
     this.audioMerger = ac.createChannelMerger();
@@ -324,7 +324,7 @@ console.debug(req.data);
           that.visualizer.connect(that.audioMerger, ac.destination);
           callback();
         }, function() {
-          errorCallback('failed to load audio.');
+          throw 'failed to load audio.';
         });
       };
       reader.readAsArrayBuffer(file);
