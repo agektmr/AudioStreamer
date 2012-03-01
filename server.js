@@ -48,8 +48,8 @@ app.listen(3000, function() {
   var socket = new WebSocketServer({server:app, path:'/socket'});
   socket.on('connection', function(ws) {
     var _name = '';
-    var _user_id = user_id++;
-    console.log('listener opened a connection.');
+    var _user_id = user_id++; // increment user_id on connection
+    console.log('a user opened a connection.');
     ws.on('message', function(req, flags) {
       if (flags.binary) {
         var length = req.length;
@@ -107,6 +107,7 @@ console.log(req);
       for (var i = 0; i < sessions.length; i++) {
         if (sessions[i].socket == ws) {
           sessions.splice(i, 1);
+          if (sessions.length == 0) user_id = 0; // reset user_id
         }
       }
       for (var i = 0; i < sessions.length; i++) {
@@ -119,7 +120,8 @@ console.log(req);
         sessions[i].socket.send(JSON.stringify(msg));
       }
     });
-    ws.on('error', function() {
+    ws.on('error', function(event) {
+      console.log('error on connection:', event);
     });
   })
 });
