@@ -50,7 +50,12 @@
           }
         })
         $('#play_stop').click(function() {
-          as.play();
+          if ($('#play_stop').val() == 'play') {
+            as.play();
+            $('#play_stop').val('stop');
+          } else {
+            as.stop();
+          }
         });
 
         var player = $('#player').get(0);
@@ -67,8 +72,12 @@
           $('#player').css('backgroundColor', '#fff');
           var file = e.dataTransfer.files[0];
           $('#play_stop').attr('disabled', 'disabled');
+          $('#notification').html('loading audio. just a second...');
           as.updatePlayer(file, function() {
+            $('#notification').html('audio loaded. ready to play!');
             $('#play_stop').attr('disabled', null);
+          }, function() {
+            $('#play_stop').val('play');
           });
         };
       }

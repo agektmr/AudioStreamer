@@ -51,7 +51,6 @@ app.listen(3000, function() {
     var _user_id = user_id++;
     console.log('listener opened a connection.');
     ws.on('message', function(req, flags) {
-console.log(req);
       if (flags.binary) {
         var length = req.length;
         var binary = new Uint8Array(length);
@@ -62,6 +61,7 @@ console.log(req);
           sessions[i].socket.send(binary, {binary:true, mask:false});
         };
       } else {
+console.log(req);
         var msg = JSON.parse(req);
         var res = {
           type: msg.type

@@ -55,7 +55,12 @@ var MessageGenerator = (function() {
       return JSON.stringify(msg);
     },
     parseMessage: function(msg) {
-      return JSON.parse(msg);
+      try {
+        var parsed = JSON.parse(msg);
+        return parsed;
+      } catch(e) {
+        return null;
+      }
     },
     setUserId: function(user_id) {
       _user_id = user_id;
@@ -147,14 +152,24 @@ var AudioStreamer = (function() {
   var listenerBuffer = [],
       BUFFER_LENGTH = 2048,
       ws_host = window.location.href.replace(/(http|https)(:\/\/.*?)\//, 'ws$2'),
-      ac = new webkitAudioContext();
+      ac = null
+  if (webkitAudioContext) {
+    ac = new webkitAudioContext();
+  } else {
+    alert('You need Chrome to play with this demo');
+    return;
+  };
 
   var AudioPlayer = function(destination) {
     var that = this;
     this.destination = destination;
     this.type = 'Listener';
+    // audioBuffer is source of streaming buffers
     this.audioBuffer = [[], []];
+    // source is inventory of audio buffers
+    this.source = [];
     this.isPlaying = false;
+    this.onPlayEnd = null;
 
     this.trailing = 0; // Stop playing a few audioprocess after decay
     this.js = ac.createJavaScriptNode(BUFFER_LENGTH, 2, 2);
@@ -185,8 +200,6 @@ var AudioStreamer = (function() {
   };
   AudioPlayer.prototype = {
     load: function(source, socket) {
-      // stock audio source to source as array of arraybuffers
-      // this.visualizer = visualizer || null;
       this.socket = socket || null;
       if (source.getChannelData) {
         this.source = [];
@@ -220,6 +233,7 @@ var AudioStreamer = (function() {
     stop: function() {
       this.js.disconnect();
       this.isPlaying = false;
+      if (typeof this.onPlayEnd == 'function') this.onPlayEnd();
     }
   };
 
@@ -241,25 +255,29 @@ var AudioStreamer = (function() {
       that.heartbeat = setInterval(as.sendHeartBeat.bind(that), 30 * 1000);
     };
     this.websocket.onmessage = function(req) {
-      if (typeof req.data == 'string' && typeof that.onctrlmsg == 'function') {
+      try {
+        if (typeof req.data == 'string' && typeof that.onctrlmsg == 'function') {
 console.debug(req.data);
-        // string
-        var msg = MessageGenerator.parseMessage(req.data);
-        if (msg.type == 'connected') {
-          MessageGenerator.setUserId(msg.user_id);
-        } else if (msg.type == 'connection') {
-          MessageGenerator.setUsersList(msg.users_list);
-          that.onctrlmsg(msg);
-        } else if (msg.type == 'message') {
-          that.onctrlmsg(msg);
+          // string
+          var msg = MessageGenerator.parseMessage(req.data);
+          if (msg.type == 'connected') {
+            MessageGenerator.setUserId(msg.user_id);
+          } else if (msg.type == 'connection') {
+            MessageGenerator.setUsersList(msg.users_list);
+            that.onctrlmsg(msg);
+          } else if (msg.type == 'message') {
+            that.onctrlmsg(msg);
+          }
+        } else {
+          // binary
+          var msg = AudioMessage.parse(req.data);
+          if (msg.user_id == MessageGenerator.getUserId()) return; // skip if audio is originated from same user
+          for (var ch = 0; ch < msg.ch_num; ch++) {
+            listenerBuffer[ch].push(msg.buffer_array[ch]);
+          }
         }
-      } else {
-        // binary
-        var msg = AudioMessage.parse(req.data);
-        if (msg.user_id == MessageGenerator.getUserId()) return; // skip if audio is originated from same user
-        for (var ch = 0; ch < msg.ch_num; ch++) {
-          listenerBuffer[ch].push(msg.buffer_array[ch]);
-        }
+      } catch(e) {
+        throw e;
       }
     };
     this.websocket.onclose = function() {
@@ -296,7 +314,7 @@ console.debug(req.data);
       var msg = MessageGenerator.createMessage('heartbeat');
       this.websocket.send(msg);
     },
-    updatePlayer: function(file, callback) {
+    updatePlayer: function(file, callback, playEndCallback) {
       var that = this;
       var reader = new FileReader();
       reader.onload = function(e) {
@@ -305,6 +323,7 @@ console.debug(req.data);
           if (that.audioPlayer) that.audioPlayer.stop();
           that.visualizer.disconnect();
           that.audioPlayer = new AudioPlayer(that.audioMerger);
+          if (playEndCallback) that.audioPlayer.onPlayEnd = playEndCallback;
           that.audioPlayer.load(buffer, that.websocket);
           that.visualizer.connect(that.audioMerger, ac.destination);
           callback();
@@ -319,13 +338,11 @@ console.debug(req.data);
     },
     stop: function() {
       this.audioPlayer.stop();
-      this.visualizer.disconnect();
-    },
-    rewind: function() {
     },
     disconnect: function() {
       if (this.websocket.close) {
         this.websocket.close();
+        clearInterval(this.heartbeat);
         console.debug('socket disconnected.');
       };
     }
