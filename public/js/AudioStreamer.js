@@ -353,10 +353,12 @@ console.debug(req.data);
       this.audioPlayer.play();
     },
     stop: function() {
-      this.audioPlayer.stop();
+      if (this.audioPlayer) this.audioPlayer.stop();
     },
     disconnect: function() {
       if (this.websocket.close) {
+        this.stop();
+        this.audioListener.stop();
         this.websocket.close();
         clearInterval(this.heartbeat);
         console.debug('socket disconnected.');
