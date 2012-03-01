@@ -17,8 +17,16 @@
             // connect
             as = new AudioStreamer(WS_HOST, listenerVisualizer, function() {
               as.onctrlmsg = function(msg) {
-                var li = $('<li/>').html(msg);
-                $('#msg').prepend(li);
+                if (msg.type == 'connection') {
+                  $('#attendees').empty();
+                  for (var i = 0; i < msg.message.length; i++) {
+                    var span = $('<span/>').text(msg.message[i].name+', ');
+                    $('#attendees').prepend(span);
+                  }
+                } if (msg.type == 'message') {
+                  var li = $('<li/>').text(msg.name+': '+msg.message);
+                  $('#msg').prepend(li);
+                }
               };
               as.nameSelf($('#name').val() || 'No Name');
               $('#name').attr('disabled', 'disabled');
@@ -37,8 +45,11 @@
             $('#connect').val('connect');
           }
         });
-        $('#send_text').click(function() {
-          as.sendText($('#text').val());
+        $('#text').keydown(function(e) {
+          if (e.keyCode == 13) {
+            as.sendText($('#text').val());
+            $('#text').val('');
+          }
         })
         $('#play_stop').click(function() {
           as.play();

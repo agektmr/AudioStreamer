@@ -30,71 +30,99 @@ app.configure('production', function(){
 app.get('/', routes.index);
 // app.get('/play', routes.play);
 
-var listeners = [],
-    players = [];
+var sessions = [],
+    user_id = 0;
+var getUsersList = function() {
+  var users_list = [];
+  for (var i = 0; i < sessions.length; i++) {
+    var user = {
+      user_id: sessions[i].user_id,
+      name: sessions[i].name
+    }
+    users_list.push(user);
+  }
+  return users_list;
+};
+
 app.listen(3000, function() {
-  var wsp = new WebSocketServer({server:app, path:'/play'});
-  var wsl = new WebSocketServer({server:app, path:'/listen'});
-  wsp.on('connection', function(ws) {
-    players.push(ws);
-    console.log('player opened a connection.');
-    ws.on('message', function(buffer) {
-      console.log('player received a message:', buffer); 
-      var length = buffer.length;
-      var binary = new Uint8Array(length);
-      for (var i = 0; i < length; i++) {
-        binary[i] = buffer.readUInt8(i);
-      };
-      for (var i = 0; i < listeners.length; i++) {
-        // if (listeners[i] == ws) continue;
-        listeners[i].send(binary, {binary:true, mask:false});
-      };
-    });
-    ws.on('close', function() {
-      console.log('player closed connection.')
-      for (var i = 0; i < players.length; i ++) {
-        if (players[i] == ws) {
-          players.splice(i, 1);
-          break;
-        }
-      }
-    });
-    ws.on('error', function() {
-    });
-  });
-  wsl.on('connection', function(ws) {
-    var name = '';
-    listeners.push(ws);
+  var socket = new WebSocketServer({server:app, path:'/socket'});
+  socket.on('connection', function(ws) {
+    var _name = '';
+    var _user_id = user_id++;
     console.log('listener opened a connection.');
-    ws.on('message', function(message) {
-      if (message == 'heartbeat') {
-        console.log('received heartbeat.');
-        return;
-      }
-      console.log('received a message: "'+message+'"');  
-      for (var i = 0; i < listeners.length; i++) {
-        if (name == '') {
-          name = message;
-          listeners[i].send(message+' opened a connection.');
-        } else {
-          listeners[i].send(name+': '+message);
+    ws.on('message', function(req, flags) {
+console.log(req);
+      if (flags.binary) {
+        var length = req.length;
+        var binary = new Uint8Array(length);
+        for (var i = 0; i < length; i++) {
+          binary[i] = req.readUInt8(i);
+        };
+        for (var i = 0; i < sessions.length; i++) {
+          sessions[i].socket.send(binary, {binary:true, mask:false});
+        };
+      } else {
+        var msg = JSON.parse(req);
+        var res = {
+          type: msg.type
+        };
+        switch (msg.type) {
+          case 'message':
+            console.log('received a message: "'+msg.message+'"');  
+            res.name = _name;
+            res.user_id = _user_id;
+            res.message = msg.message;
+            break;
+          case 'connection':
+            _name = msg.name;
+            var user = {
+              name: _name || 'No Name',
+              user_id: _user_id,
+              socket: ws
+            }
+            ws.send(JSON.stringify({
+              user_id: user.user_id,
+              name: user.name,
+              type: 'connected'
+            }));
+            sessions.push(user);
+            res.name = user.name;
+            res.user_id = user.user_id;
+            res.message = getUsersList();
+            break;
+          case 'heartbeat':
+            console.log('received heartbeat.');
+            return;
+          default:
+            console.log('received invalid message.');
+            return;
+        }
+        for (var i = 0; i < sessions.length; i++) {
+          var listener = sessions[i];
+          listener.socket.send(JSON.stringify(res));
         }
       }
     })
     ws.on('close', function() {
-      console.log(name+' closed the connection.');
-      for (var i = 0; i < listeners.length; i++) {
-        if (listeners[i] == ws) {
-          listeners.splice(i, 1);
-          break;
-        } else {
-          listeners[i].send(name+' closed the connection.');
+      console.log(_name+' closed the connection.');
+      for (var i = 0; i < sessions.length; i++) {
+        if (sessions[i].socket == ws) {
+          sessions.splice(i, 1);
         }
+      }
+      for (var i = 0; i < sessions.length; i++) {
+        var msg = {
+          user_id: _user_id,
+          name: _name,
+          type: 'connection',
+          users_list: getUsersList()
+        };
+        sessions[i].socket.send(msg);
       }
     });
     ws.on('error', function() {
     });
- })
+  })
 });
 
 console.log("Express server listening on port %d in %s mode", app.address().port, app.settings.env);
