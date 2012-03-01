@@ -263,7 +263,7 @@ console.debug(req.data);
           if (msg.type == 'connected') {
             MessageGenerator.setUserId(msg.user_id);
           } else if (msg.type == 'connection') {
-            MessageGenerator.setUsersList(msg.users_list);
+            MessageGenerator.setUsersList(msg.message);
             that.onctrlmsg(msg);
           } else if (msg.type == 'message') {
             that.onctrlmsg(msg);

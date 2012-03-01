@@ -98,8 +98,7 @@ console.log(req);
             return;
         }
         for (var i = 0; i < sessions.length; i++) {
-          var listener = sessions[i];
-          listener.socket.send(JSON.stringify(res));
+          sessions[i].socket.send(JSON.stringify(res));
         }
       }
     })
@@ -115,9 +114,9 @@ console.log(req);
           user_id: _user_id,
           name: _name,
           type: 'connection',
-          users_list: getUsersList()
+          message: getUsersList()
         };
-        sessions[i].socket.send(msg);
+        sessions[i].socket.send(JSON.stringify(msg));
       }
     });
     ws.on('error', function() {
