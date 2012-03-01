@@ -239,6 +239,7 @@ var AudioStreamer = (function() {
     listenerBuffer = [[],[]];
     this.audioReady = false;
     this.onctrlmsg = null;
+    this.onMessage = null;
     this.heartbeat = null;
 
     this.websocket = new WebSocket(ws_host+'/socket');
@@ -262,7 +263,7 @@ console.debug(req.data);
             MessageGenerator.setUsersList(msg.message);
             that.onctrlmsg(msg);
           } else if (msg.type == 'message') {
-            that.onctrlmsg(msg);
+            that.onMessage(msg.name+': '+msg.message);
           }
         } else {
           // binary

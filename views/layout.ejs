@@ -15,16 +15,15 @@
             // connect
             as = new AudioStreamer(WS_HOST, function() {
               as.onctrlmsg = function(msg) {
-                if (msg.type == 'connection') {
-                  $('#attendees').empty();
-                  for (var i = 0; i < msg.message.length; i++) {
-                    var li = $('<li/>').text(msg.message[i].name);
-                    $('#attendees').prepend(li);
-                  }
-                } if (msg.type == 'message') {
-                  var li = $('<li/>').text(msg.name+': '+msg.message);
-                  $('#msg').prepend(li);
+                $('#attendees').empty();
+                for (var i = 0; i < msg.message.length; i++) {
+                  var li = $('<li/>').text(msg.message[i].name);
+                  $('#attendees').prepend(li);
                 }
+              };
+              as.onMessage = function(message) {
+                var li = $('<li/>').text(message);
+                $('#msg').prepend(li);
               };
               as.nameSelf($('#name').val() || 'No Name');
               $('#name').attr('disabled', 'disabled');
