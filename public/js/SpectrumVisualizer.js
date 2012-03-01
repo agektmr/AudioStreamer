@@ -4,50 +4,37 @@
  *   width
  *   height
  *   smoothingTimeConstant
- *   buffer_length
- *   inputs
- *   outputs
  * }
  */
 var SpectrumVisualizer = function(audioContext, params) {
   this.ac = audioContext;
-  this.canvas = document.createElement('canvas');
-  this.canvas.setAttribute('width', params.width || 400);
-  this.canvas.setAttribute('height', params.height || 200);
-  this.cc = this.canvas.getContext('2d');
-  params.elem.appendChild(this.canvas);
+  var canvas = document.createElement('canvas');
+  canvas.setAttribute('width', params.width || 400);
+  canvas.setAttribute('height', params.height || 200);
+  this.cc = canvas.getContext('2d');
+  params.elem.appendChild(canvas);
 
-  this.width = parseInt(this.canvas.width);
-  this.height = parseInt(this.canvas.height);
+  this.width = parseInt(canvas.width);
+  this.height = parseInt(canvas.height);
 
-  this.inputs = params.inputs || 2;
-  this.outputs = params.outputs || 2;
   this.analyser = this.ac.createAnalyser();
   this.analyser.smoothingTimeConstant = params.smoothingTimeConstant || 0.3;
-  this.js = this.ac.createJavaScriptNode(
-    params.buffer_length || 2048,
-    this.inputs,
-    this.outputs
-  );
-  this.js.onaudioprocess = function(event) {
+  var analyse = function() {
     var freqByteData = new Uint8Array(this.analyser.frequencyBinCount);
     this.analyser.getByteFrequencyData(freqByteData);
     this._draw(freqByteData);
-    for (var i = 0; i < this.inputs; i++) {
-      event.outputBuffer.getChannelData(i).set(event.inputBuffer.getChannelData(i));
-    }
-  }.bind(this);
+    webkitRequestAnimationFrame(analyse.bind(this));
+  };
+  analyse.call(this);
 };
 SpectrumVisualizer.prototype = {
   connect: function(source, destination) {
     source.connect(this.analyser);
-    this.analyser.connect(this.js);
-    this.js.connect(destination);
+    this.analyser.connect(destination);
   },
   disconnect: function() {
     if (this.source) this.source.disconnect();
     this.analyser.disconnect();
-    this.js.disconnect();
   },
   _draw: function(freq) {
     var length = freq.length;

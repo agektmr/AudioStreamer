@@ -171,7 +171,6 @@ var AudioStreamer = (function() {
     this.isPlaying = false;
     this.onPlayEnd = null;
 
-    this.trailing = 0; // Stop playing a few audioprocess after decay
     this.js = ac.createJavaScriptNode(BUFFER_LENGTH, 2, 2);
     this.js.onaudioprocess = function(event) {
       var buffers = [];
@@ -180,10 +179,7 @@ var AudioStreamer = (function() {
       }
       if (that.type == 'Player') {
         if (that.audioBuffer[0].length == 0) {
-          if (that.trailing++ > 3) {
-            that.trailing = 0;
-            that.stop();
-          }
+          that.stop();
         } else {
           var msg = AudioMessage.binarize({
             user_id:MessageGenerator.getUserId(),
