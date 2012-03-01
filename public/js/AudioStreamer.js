@@ -210,9 +210,10 @@ var AudioStreamer = (function() {
     },
     play: function() {
       this.js.connect(this.destination);
-      for (var i = 0; i < this.source[0].length; i++) {
-        this.audioBuffer[0][i] = this.source[0][i];
-        this.audioBuffer[1][i] = this.source[1][i];
+      for (var ch = 0; ch < this.source.length; ch++) {
+        for (var i = 0; i < this.source[ch].length; i++) {
+          this.audioBuffer[ch][i] = this.source[ch][i];
+        }
       }
       this.isPlaying = true;
     },
@@ -273,14 +274,13 @@ console.debug(req.data);
     this.audioListener = new AudioPlayer(this.audioMerger);
     this.audioListener.load(listenerBuffer);
     this.audioListener.listen();
-    this.player = null;
     // TODO: move visual element to outside
-    var visualizer = new SpectrumVisualizer(ac, {
+    this.visualizer = new SpectrumVisualizer(ac, {
       elem: document.getElementById('visualizer'),
       width: 600,
       height: 150
     });
-    visualizer.connect(this.audioMerger, ac.destination);
+    this.visualizer.connect(this.audioMerger, ac.destination);
   };
   AudioStreamer.prototype = {
     nameSelf: function(name) {
@@ -302,8 +302,11 @@ console.debug(req.data);
       reader.onload = function(e) {
         ac.decodeAudioData(e.target.result, function(buffer) {
           that.audioReady = true;
+          if (that.audioPlayer) that.audioPlayer.stop();
+          that.visualizer.disconnect();
           that.audioPlayer = new AudioPlayer(that.audioMerger);
           that.audioPlayer.load(buffer, that.websocket);
+          that.visualizer.connect(that.audioMerger, ac.destination);
           callback();
         }, function() {
           errorCallback('failed to load audio.');
@@ -312,24 +315,17 @@ console.debug(req.data);
       reader.readAsArrayBuffer(file);
     },
     play: function() {
-      var that = this;
       this.audioPlayer.play();
     },
     stop: function() {
-      if (this.audioSource) {
-        this.audioSource.noteOff(0);
-        this.audioSource = null;
-      };
+      this.audioPlayer.stop();
+      this.visualizer.disconnect();
     },
     rewind: function() {
     },
     disconnect: function() {
       if (this.websocket.close) {
         this.websocket.close();
-        console.debug('socket disconnected.');
-      };
-      if (this.player && this.player.close) {
-        this.player.close();
         console.debug('socket disconnected.');
       };
     }
