@@ -90,6 +90,11 @@ console.log(req);
             res.user_id = user.user_id;
             res.message = getUsersList();
             break;
+          case 'start_music':
+            res.name = msg.name;
+            res.user_id = msg.user_id;
+            res.message = msg.message || '';
+            break;
           case 'heartbeat':
             console.log('received heartbeat.');
             return;

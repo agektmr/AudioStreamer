@@ -1,7 +1,7 @@
 /*
  * user_id: user id of original sender (null if initialization)
  * name: name of sender
- * type: message type ['connection', 'connected', 'message', 'heartbeat']
+ * type: message type ('connection'|'connected'|'message'|'heartbeat'|'start_music')
  * message: message body (array of {user_id: *, name: *} if type is 'connection' and from server)
  *
  * { // request from client
@@ -33,6 +33,13 @@
  *    name: 'agektmr',
  *    type: 'message',
  *    message: 'hello!'
+ * }
+ *
+ * { // request / response from client
+ *    user_id: 0,
+ *    name: 'agektmr',
+ *    type: 'start_music',
+ *    message: null
  * }
  */
 var MessageGenerator = (function() {
@@ -257,13 +264,20 @@ var AudioStreamer = (function() {
 console.debug(req.data);
           // string
           var msg = MessageGenerator.parseMessage(req.data);
-          if (msg.type == 'connected') {
+          switch (msg.type) {
+          case 'connected':
             MessageGenerator.setUserId(msg.user_id);
-          } else if (msg.type == 'connection') {
+            break;
+          case 'connection':
             MessageGenerator.setUsersList(msg.message);
             that.onctrlmsg(msg);
-          } else if (msg.type == 'message') {
+            break;
+          case 'message':
             that.onMessage(msg.name+': '+msg.message);
+            break;
+          case 'start_music':
+            that.onMessage(msg.name+' started playing music');
+            break;
           }
         } else {
           // binary
@@ -331,6 +345,11 @@ console.debug(req.data);
       reader.readAsArrayBuffer(file);
     },
     play: function() {
+      this.websocket.send(JSON.stringify({
+        user_id:  MessageGenerator.getUserId(),
+        name: MessageGenerator.getName(),
+        type: 'start_music'
+      }));
       this.audioPlayer.play();
     },
     stop: function() {
