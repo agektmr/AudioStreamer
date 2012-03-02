@@ -42,7 +42,7 @@
  *    message: null
  * }
  */
-var MessageGenerator = (function() {
+var TextMessage = (function() {
   var _user_id = null,
       _name = '',
       _users_list = [];
@@ -108,7 +108,7 @@ var AudioMessage = (function() {
    * }
    */
   return {
-    binarize: function(msg_obj) {
+    createMessage: function(msg_obj) {
       var bl = msg_obj.buffer_length;
       var ch_num = msg_obj.buffer_array.length;
       var ab = new ArrayBuffer(4 + 1 + 4 + (bl * ch_num * 4));
@@ -128,7 +128,7 @@ var AudioMessage = (function() {
       }
       return new Uint8Array(view.buffer);
     },
-    parse: function(bin_msg) {
+    parseMessage: function(bin_msg) {
       try {
         var offset = 0;
         var msg_obj = {};
@@ -188,8 +188,8 @@ var AudioStreamer = (function() {
         if (that.audioBuffer[0].length == 0) {
           that.stop();
         } else {
-          var msg = AudioMessage.binarize({
-            user_id:MessageGenerator.getUserId(),
+          var msg = AudioMessage.createMessage({
+            user_id:TextMessage.getUserId(),
             buffer_length:BUFFER_LENGTH,
             buffer_array:buffers
           });
@@ -263,13 +263,13 @@ var AudioStreamer = (function() {
         if (typeof req.data == 'string' && typeof that.onctrlmsg == 'function') {
 console.debug(req.data);
           // string
-          var msg = MessageGenerator.parseMessage(req.data);
+          var msg = TextMessage.parseMessage(req.data);
           switch (msg.type) {
           case 'connected':
-            MessageGenerator.setUserId(msg.user_id);
+            TextMessage.setUserId(msg.user_id);
             break;
           case 'connection':
-            MessageGenerator.setUsersList(msg.message);
+            TextMessage.setUsersList(msg.message);
             that.onctrlmsg(msg);
             break;
           case 'message':
@@ -281,8 +281,8 @@ console.debug(req.data);
           }
         } else {
           // binary
-          var msg = AudioMessage.parse(req.data);
-          if (msg.user_id == MessageGenerator.getUserId()) return; // skip if audio is originated from same user
+          var msg = AudioMessage.parseMessage(req.data);
+          if (msg.user_id == TextMessage.getUserId()) return; // skip if audio is originated from same user
           for (var ch = 0; ch < msg.ch_num; ch++) {
             listenerBuffer[ch].push(msg.buffer_array[ch]);
           }
@@ -313,16 +313,16 @@ console.debug(req.data);
   };
   AudioStreamer.prototype = {
     nameSelf: function(name) {
-      MessageGenerator.setName(name);
-      var msg = MessageGenerator.createMessage('connection');
+      TextMessage.setName(name);
+      var msg = TextMessage.createMessage('connection');
       this.websocket.send(msg);
     },
     sendText: function(text) {
-      var msg = MessageGenerator.createMessage('message', text);
+      var msg = TextMessage.createMessage('message', text);
       this.websocket.send(msg);
     },
     sendHeartBeat: function() {
-      var msg = MessageGenerator.createMessage('heartbeat');
+      var msg = TextMessage.createMessage('heartbeat');
       this.websocket.send(msg);
     },
     updatePlayer: function(file, callback, playEndCallback) {
@@ -346,8 +346,8 @@ console.debug(req.data);
     },
     play: function() {
       this.websocket.send(JSON.stringify({
-        user_id:  MessageGenerator.getUserId(),
-        name: MessageGenerator.getName(),
+        user_id:  TextMessage.getUserId(),
+        name: TextMessage.getName(),
         type: 'start_music'
       }));
       this.audioPlayer.play();
