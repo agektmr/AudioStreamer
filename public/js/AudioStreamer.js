@@ -1,160 +1,3 @@
-/*
- * user_id: user id of original sender (null if initialization)
- * name: name of sender
- * type: message type ('connection'|'connected'|'message'|'heartbeat'|'start_music')
- * message: message body (array of {user_id: *, name: *} if type is 'connection' and from server)
- *
- * { // request from client
- *   user_id: null,
- *   name: 'agektmr',
- *   type: 'connection',
- *   message: null
- * }
-
- * { // response from server
- *   user_id: 0,
- *   name: 'agektmr',
- *   type: 'connected',
- *   message: null
- * }
- *
- * { // broadcast from server
- *   user_id: 0,
- *   name: 'agektmr',
- *   type: 'connection',
- *   message: [
- *     {user_id: 1, name: 'test'},
- *     {user_id: 2, name: 'test2'}
- *   ]
- * }
- *
- * { // request / response from client
- *    user_id: 0,
- *    name: 'agektmr',
- *    type: 'message',
- *    message: 'hello!'
- * }
- *
- * { // request / response from client
- *    user_id: 0,
- *    name: 'agektmr',
- *    type: 'start_music',
- *    message: null
- * }
- */
-var TextMessage = (function() {
-  var _user_id = null,
-      _name = '',
-      _users_list = [];
-  return {
-    createMessage: function(type, message) {
-      if (this.name == '') throw 'name is not set';
-      if (type != 'connection' &&
-          type != 'message' &&
-          type != 'heartbeat')
-        throw 'message type is unknown';
-      var msg = {
-        user_id: _user_id,
-        name: _name,
-        type: type,
-        message: message || ''
-      };
-      return JSON.stringify(msg);
-    },
-    parseMessage: function(msg) {
-      try {
-        var parsed = JSON.parse(msg);
-        return parsed;
-      } catch(e) {
-        return null;
-      }
-    },
-    setUserId: function(user_id) {
-      _user_id = user_id;
-    },
-    getUserId: function() {
-      return _user_id;
-    },
-    setName: function(name) {
-      _name = name;
-    },
-    getName: function() {
-      return _name;
-    },
-    setUsersList: function(users_list) {
-      _users_list = users_list;
-    },
-    getUsersList: function() {
-      return _users_list;
-    }
-  };
-})();
-
-var AudioMessage = (function() {
-  var FORMAT_LENGTH = [
-  ];
-  /*
-   * user_id: user id of original sender 0x0000 ~ 0xFFFF
-   * ch_num: number of channels 0x00 ~ 0x0F
-   * buffer_length: buffer length 0x0000 ~ 0xFFFF
-   * buffer_array: array of audio buffers
-   * msg_obj = {
-   *   user_id: 1000,
-   *   buffer_length: 2048,
-   *   buffer_array: [
-   *     new Float32Array(64),
-   *     new Float32Array(64)
-   *   ]
-   * }
-   */
-  return {
-    createMessage: function(msg_obj) {
-      var bl = msg_obj.buffer_length;
-      var ch_num = msg_obj.buffer_array.length;
-      var ab = new ArrayBuffer(4 + 1 + 4 + (bl * ch_num * 4));
-      var view = new DataView(ab);
-      var offset = 0;
-      view.setUint32(offset, msg_obj.user_id);
-      offset += 4;
-      view.setUint8(offset, ch_num);
-      offset += 1;
-      view.setUint32(offset, bl);
-      offset += 4;
-      for (var i = 0; i < ch_num; i++) {
-        for (var j = 0; j < bl; j++) {
-          view.setFloat32(offset, msg_obj.buffer_array[i][j]);
-          offset += 4;
-        }
-      }
-      return new Uint8Array(view.buffer);
-    },
-    parseMessage: function(bin_msg) {
-      try {
-        var offset = 0;
-        var msg_obj = {};
-        var view = new DataView(bin_msg);
-        msg_obj.user_id = view.getUint32(0);
-        offset += 4;
-        msg_obj.ch_num = view.getUint8(4);
-        offset += 1;
-        msg_obj.buffer_length = view.getUint32(5);
-        offset += 4;
-        msg_obj.buffer_array = new Array(msg_obj.ch_num);
-        for (var i = 0; i < msg_obj.ch_num; i++) {
-          msg_obj.buffer_array[i] = new Float32Array(msg_obj.buffer_length)
-          for (var j = 0; j < msg_obj.buffer_length; j++) {
-            msg_obj.buffer_array[i][j] = view.getFloat32(offset);
-            offset += 4;
-          }
-        }
-        return msg_obj;
-      } catch (e) {
-        throw e;
-      }
-    }
-  }
-})();
-
 var AudioStreamer = (function() {
   var listenerBuffer = [],
       BUFFER_LENGTH = 2048,
@@ -166,6 +9,192 @@ var AudioStreamer = (function() {
     alert('You need Chrome to play with this demo');
     return;
   };
+
+  /*
+   * user_id: user id of original sender (null if initialization)
+   * name: name of sender
+   * type: message type ('connection'|'connected'|'message'|'heartbeat'|'start_music')
+   * message: message body (array of {user_id: *, name: *} if type is 'connection' and from server)
+   *
+   * { // connection (client to server)
+   *   user_id: null,
+   *   name: 'agektmr',
+   *   type: 'connection',
+   *   message: null
+   * }
+
+   * { // connection (server to client)
+   *   user_id: 0,
+   *   name: 'agektmr',
+   *   type: 'connection',
+   *   message: [
+   *     {user_id: 1, name: 'test'},
+   *     {user_id: 2, name: 'test2'}
+   *   ]
+   * }
+   *
+   * { // connected
+   *   user_id: 0,
+   *   name: 'agektmr',
+   *   type: 'connected',
+   *   message: null
+   * }
+   *
+   * { // message
+   *    user_id: 0,
+   *    name: 'agektmr',
+   *    type: 'message',
+   *    message: 'hello!'
+   * }
+   *
+   * { // start_music
+   *    user_id: 0,
+   *    name: 'agektmr',
+   *    type: 'start_music',
+   *    message: null
+   * }
+   */
+  var TextMessage = {
+    createMessage: function(type, message) {
+      if (type != 'connection' &&
+          type != 'message' &&
+          type != 'heartbeat')
+        throw 'message type is unknown';
+      var msg = {
+        user_id: AttendeeManager.getUserId(),
+        name: AttendeeManager.getName(),
+        type: type,
+        message: message || ''
+      };
+      return JSON.stringify(msg);
+    },
+    parseMessage: function(msg) {
+      try {
+        var parsed = JSON.parse(msg);
+        return parsed;
+      } catch(e) {
+        throw e;
+      }
+    }
+  };
+
+  var AudioMessage = (function() {
+    /*
+     * JSON Schema (extended with TypedArray)
+     * {
+     *   "name": "AudioMessage",
+     *   "properties": {
+     *     "user_id": {
+     *       "type": "Uint32Array",
+     *       "description": "user id of original sender",
+     *       "required": true
+     *     },
+     *     "ch_num": {
+     *       "type": "Uint8Array",
+     *       "description": "number of channels",
+     *       "required": true
+     *     }
+     *     "buffer_length": {
+     *       "type": "Uint32Array",
+     *       "descriptoin": "audio buffer length",
+     *       "required": true
+     *     },
+     *     "buffer_array": {
+     *       "type": "array",
+     *       "description": "concatenated array of audio buffers through all channels",
+     *       "required": true
+     *       "items": {
+     *         "type": "Float32Array",
+     *         "description": "audio buffer"
+     *       }
+     *     }
+     *   }
+     * }
+     */
+    return {
+      createMessage: function(msg_obj) {
+        var bl = msg_obj.buffer_length;
+        var ch_num = msg_obj.buffer_array.length;
+        var ab = new ArrayBuffer(4 + 1 + 4 + (bl * ch_num * 4));
+        var view = new DataView(ab);
+        var offset = 0;
+        view.setUint32(offset, msg_obj.user_id);
+        offset += 4;
+        view.setUint8(offset, ch_num);
+        offset += 1;
+        view.setUint32(offset, bl);
+        offset += 4;
+        for (var i = 0; i < ch_num; i++) {
+          for (var j = 0; j < bl; j++) {
+            view.setFloat32(offset, msg_obj.buffer_array[i][j]);
+            offset += 4;
+          }
+        }
+        return new Uint8Array(view.buffer);
+      },
+      parseMessage: function(bin_msg) {
+        try {
+          var offset = 0;
+          var msg_obj = {};
+          var view = new DataView(bin_msg);
+          msg_obj.user_id = view.getUint32(0);
+          offset += 4;
+          msg_obj.ch_num = view.getUint8(4);
+          offset += 1;
+          msg_obj.buffer_length = view.getUint32(5);
+          offset += 4;
+          msg_obj.buffer_array = new Array(msg_obj.ch_num);
+          for (var i = 0; i < msg_obj.ch_num; i++) {
+            msg_obj.buffer_array[i] = new Float32Array(msg_obj.buffer_length)
+            for (var j = 0; j < msg_obj.buffer_length; j++) {
+              msg_obj.buffer_array[i][j] = view.getFloat32(offset);
+              offset += 4;
+            }
+          }
+          return msg_obj;
+        } catch (e) {
+          throw e;
+        }
+      }
+    }
+  })();
+
+  var AttendeeManager = (function() {
+    var _user_id = null,
+        _name = '',
+        _attendees = [];
+    return {
+      setUserId: function(user_id) {
+        _user_id = user_id;
+      },
+      getUserId: function() {
+        return _user_id;
+      },
+      setName: function(name) {
+        _name = name;
+      },
+      getName: function() {
+        return _name;
+      },
+      setAttendees: function(attendees) {
+        var deletion = _attendees.filter(function(_attendee) {
+          return attendees.every(function(attendee) {
+            return (attendee.user_id != _attendee.user_id);
+          })
+        });
+        var addition = attendees.filter(function(attendee) {
+        });
+        _attendees = attendees;
+      },
+      getAttendees: function() {
+        return _attendees;
+      },
+      addAudioPlayer: function(user_id, destination) {
+      },
+      removeAudioPlayer: function(user_id) {
+      }
+    };
+  })();
 
   var AudioPlayer = function(destination) {
     var that = this;
@@ -189,7 +218,7 @@ var AudioStreamer = (function() {
           that.stop();
         } else {
           var msg = AudioMessage.createMessage({
-            user_id:TextMessage.getUserId(),
+            user_id:AttendeeManager.getUserId(),
             buffer_length:BUFFER_LENGTH,
             buffer_array:buffers
           });
@@ -266,10 +295,10 @@ console.debug(req.data);
           var msg = TextMessage.parseMessage(req.data);
           switch (msg.type) {
           case 'connected':
-            TextMessage.setUserId(msg.user_id);
+            AttendeeManager.setUserId(msg.user_id);
             break;
           case 'connection':
-            TextMessage.setUsersList(msg.message);
+            AttendeeManager.setAttendees(msg.message);
             that.onctrlmsg(msg);
             break;
           case 'message':
@@ -282,7 +311,7 @@ console.debug(req.data);
         } else {
           // binary
           var msg = AudioMessage.parseMessage(req.data);
-          if (msg.user_id == TextMessage.getUserId()) return; // skip if audio is originated from same user
+          if (msg.user_id == AttendeeManager.getUserId()) return; // skip if audio is originated from same user
           for (var ch = 0; ch < msg.ch_num; ch++) {
             listenerBuffer[ch].push(msg.buffer_array[ch]);
           }
@@ -298,7 +327,7 @@ console.debug(req.data);
     this.websocket.onerror = function() {
       alert('connection error.');
     };
-    // TODO: move visual element to outside
+
     this.audioMerger = ac.createChannelMerger();
     this.audioListener = new AudioPlayer(this.audioMerger);
     this.audioListener.load(listenerBuffer);
@@ -313,7 +342,7 @@ console.debug(req.data);
   };
   AudioStreamer.prototype = {
     nameSelf: function(name) {
-      TextMessage.setName(name);
+      AttendeeManager.setName(name);
       var msg = TextMessage.createMessage('connection');
       this.websocket.send(msg);
     },
@@ -346,8 +375,8 @@ console.debug(req.data);
     },
     play: function() {
       this.websocket.send(JSON.stringify({
-        user_id:  TextMessage.getUserId(),
-        name: TextMessage.getName(),
+        user_id:  AttendeeManager.getUserId(),
+        name: AttendeeManager.getName(),
         type: 'start_music'
       }));
       this.audioPlayer.play();
