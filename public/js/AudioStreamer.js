@@ -1,6 +1,5 @@
 var AudioStreamer = (function() {
-  var listenerBuffer = [],
-      BUFFER_LENGTH = 2048,
+  var BUFFER_LENGTH = 2048,
       ws_host = window.location.href.replace(/(http|https)(:\/\/.*?)\//, 'ws$2'),
       ac = null
   if (window.webkitAudioContext) {
@@ -196,14 +195,12 @@ var AudioStreamer = (function() {
     };
   })();
 
-  var AudioPlayer = function(destination) {
+  var AudioPlayer = function(bufferArray, destination, socket) {
     var that = this;
     this.destination = destination;
-    this.type = 'Listener';
     // audioBuffer is source of streaming buffers
-    this.audioBuffer = [[], []];
-    // source is inventory of audio buffers
-    this.source = [];
+    this.audioBuffer = bufferArray;
+    this.socket = socket || null;
     this.isPlaying = false;
     this.onPlayEnd = null;
 
@@ -213,7 +210,7 @@ var AudioStreamer = (function() {
       for (var i = 0; i < that.audioBuffer.length; i++) {
         buffers.push(that.audioBuffer[i].shift() || new Float32Array(BUFFER_LENGTH));
       }
-      if (that.type == 'Player') {
+      if (that.socket) { // only player have socket set
         if (that.audioBuffer[0].length == 0) {
           that.stop();
         } else {
@@ -231,35 +228,11 @@ var AudioStreamer = (function() {
     };
   };
   AudioPlayer.prototype = {
-    load: function(source, socket) {
-      this.socket = socket || null;
-      if (source.getChannelData) {
-        this.source = [];
-        for (var ch = 0; ch < source.numberOfChannels; ch++) {
-          this.source[ch] = [];
-          for (var i = 0; i < source.length; i++) {
-            var index = ~~(i/BUFFER_LENGTH);
-            var offset = i%BUFFER_LENGTH;
-            if (offset == 0) this.source[ch][index] = new Float32Array(BUFFER_LENGTH);
-            this.source[ch][index][offset] = source.getChannelData(ch)[i];
-          }
-        }
-        this.type = 'Player';
-      } else {
-        this.audioBuffer = source;
-        this.type = 'Listener';
-      }
-    },
     listen: function() {
       this.js.connect(this.destination);
     },
     play: function() {
       this.js.connect(this.destination);
-      for (var ch = 0; ch < this.source.length; ch++) {
-        for (var i = 0; i < this.source[ch].length; i++) {
-          this.audioBuffer[ch][i] = this.source[ch][i];
-        }
-      }
       this.isPlaying = true;
     },
     stop: function() {
@@ -272,7 +245,8 @@ var AudioStreamer = (function() {
   var AudioStreamer = function(host, callback) {
     var that = this;
     ws_host = host;
-    listenerBuffer = [[],[]];
+    this.listenerBuffer = [[],[]];
+    this.playerBuffer = [[],[]];
     this.audioReady = false;
     this.onctrlmsg = null;
     this.onMessage = null;
@@ -290,7 +264,7 @@ var AudioStreamer = (function() {
     this.websocket.onmessage = function(req) {
       try {
         if (typeof req.data == 'string' && typeof that.onctrlmsg == 'function') {
-console.debug(req.data);
+          console.debug(req.data);
           // string
           var msg = TextMessage.parseMessage(req.data);
           switch (msg.type) {
@@ -313,7 +287,7 @@ console.debug(req.data);
           var msg = AudioMessage.parseMessage(req.data);
           if (msg.user_id == AttendeeManager.getUserId()) return; // skip if audio is originated from same user
           for (var ch = 0; ch < msg.ch_num; ch++) {
-            listenerBuffer[ch].push(msg.buffer_array[ch]);
+            that.listenerBuffer[ch].push(msg.buffer_array[ch]);
           }
         }
       } catch(e) {
@@ -329,8 +303,7 @@ console.debug(req.data);
     };
 
     this.audioMerger = ac.createChannelMerger();
-    this.audioListener = new AudioPlayer(this.audioMerger);
-    this.audioListener.load(listenerBuffer);
+    this.audioListener = new AudioPlayer(this.listenerBuffer, this.audioMerger);
     this.audioListener.listen();
     // TODO: move visual element to outside
     this.visualizer = new SpectrumVisualizer(ac, {
@@ -356,15 +329,27 @@ console.debug(req.data);
     },
     updatePlayer: function(file, callback, playEndCallback) {
       var that = this;
+      if (this.audioPlayer) this.audioPlayer.stop();
+      this.visualizer.disconnect();
+      this.audioReady = false;
+
+      this.audioPlayer = new AudioPlayer(this.playerBuffer, this.audioMerger, this.websocket);
+      if (playEndCallback) this.audioPlayer.onPlayEnd = playEndCallback;
+
       var reader = new FileReader();
       reader.onload = function(e) {
         ac.decodeAudioData(e.target.result, function(buffer) {
+          that.buffer = [];
+          for (var ch = 0; ch < buffer.numberOfChannels; ch++) {
+            that.buffer[ch] = [];
+            for (var i = 0; i < buffer.length; i++) {
+              var index = ~~(i/BUFFER_LENGTH);
+              var offset = i%BUFFER_LENGTH;
+              if (offset == 0) that.buffer[ch][index] = new Float32Array(BUFFER_LENGTH);
+              that.buffer[ch][index][offset] = buffer.getChannelData(ch)[i];
+            }
+          }
           that.audioReady = true;
-          if (that.audioPlayer) that.audioPlayer.stop();
-          that.visualizer.disconnect();
-          that.audioPlayer = new AudioPlayer(that.audioMerger);
-          if (playEndCallback) that.audioPlayer.onPlayEnd = playEndCallback;
-          that.audioPlayer.load(buffer, that.websocket);
           that.visualizer.connect(that.audioMerger, ac.destination);
           callback();
         }, function() {
@@ -379,6 +364,11 @@ console.debug(req.data);
         name: AttendeeManager.getName(),
         type: 'start_music'
       }));
+      for (var ch = 0; ch < this.buffer.length; ch++) {
+        for (var i = 0; i < this.buffer[ch].length; i++) {
+          this.playerBuffer[ch][i] = this.buffer[ch][i];
+        }
+      }
       this.audioPlayer.play();
     },
     stop: function() {
