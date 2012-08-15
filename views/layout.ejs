@@ -1,89 +1,13 @@
 <!DOCTYPE html>
-<html>
+<html ng-app>
   <head>
     <title><%= title %></title>
-    <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="/css/bootstrap.min.css">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+    <script src="js/angular.js"></script>
     <script src="js/AudioStreamer.js"></script>
     <script src="js/SpectrumVisualizer.js"></script>
-    <script>
-      var WS_HOST = window.location.href.replace(/(http|https)(:\/\/.*?)\//, 'ws$2');
-          as = null;
-      window.onload = function() {
-        $('#connect').click(function() {
-          if (!as) {
-            // connect
-            as = new AudioStreamer(WS_HOST, function() {
-              as.onctrlmsg = function(msg) {
-                $('#attendees').empty();
-                for (var i = 0; i < msg.message.length; i++) {
-                  var li = $('<li/>').text(msg.message[i].name);
-                  $('#attendees').prepend(li);
-                }
-              };
-              as.onMessage = function(message) {
-                var li = $('<li/>').text(message);
-                $('#msg').prepend(li);
-              };
-              as.nameSelf($('#name').val() || 'No Name');
-              $('#name').attr('disabled', 'disabled');
-              $('#message').show();
-              $('#player').css('display', '-webkit-box');
-              $('#conversation').css('display', '-webkit-box');
-              $('#connect').val('disconnect');
-            });
-          } else {
-            // disconnect
-            as.disconnect();
-            as = null;
-            $('#name').attr('disabled', null);
-            $('#message').hide();
-            $('#player').hide();
-            $('#connect').val('connect');
-          }
-        });
-        $('#text').keydown(function(e) {
-          if (e.keyCode == 13 && $('#text').val().length > 0) {
-            as.sendText($('#text').val());
-            $('#text').val('');
-          }
-        })
-        $('#play_stop').click(function() {
-          if ($('#play_stop').val() == 'play') {
-            as.play();
-            $('#play_stop').val('stop');
-          } else {
-            as.stop();
-          }
-        });
-
-        var player = $('#player').get(0);
-        player.ondragenter = function(e) {
-          $('#player').css('backgroundColor', '#eee');
-        };
-        player.ondragleave = function(e) {
-          $('#player').css('backgroundColor', '#fff');
-        };
-        player.ondragover = function(e) {
-          e.preventDefault();
-        };
-        player.ondrop = function(e) {
-          $('#player').css('backgroundColor', '#fff');
-          var file = e.dataTransfer.files[0];
-          $('#play_stop').attr('disabled', 'disabled');
-          $('#notification').html('loading audio. just a second...');
-          as.updatePlayer(file, function() {
-            $('#notification').html('audio loaded. ready to play!');
-            $('#play_stop').attr('disabled', null);
-          }, function() {
-            $('#play_stop').val('play');
-          });
-          e.preventDefault();
-          e.stopPropagation();
-        };
-      }
-    </script>
+    <script src="js/controllers.js"></script>
   </head>
   <body>
   <%- body %>

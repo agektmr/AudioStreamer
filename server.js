@@ -1,10 +1,28 @@
+/*
+Copyright 2012 Eiji Kitamura
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+Author: Eiji Kitamura (agektmr@gmail.com)
+*/
+
 /**
  * Module dependencies.
  */
 
-var express = require('express')
-  , routes = require('./routes')
-  , WebSocketServer = require('ws').Server;
+var express = require('express'),
+    routes = require('./routes'),
+    WebSocketServer = require('ws').Server;
 
 var app = module.exports = express.createServer();
 
@@ -18,11 +36,11 @@ app.configure(function(){
 });
 
 app.configure('development', function(){
-  app.use(express.errorHandler({ dumpExceptions: true, showStack: true })); 
+  app.use(express.errorHandler({ dumpExceptions: true, showStack: true }));
 });
 
 app.configure('production', function(){
-  app.use(express.errorHandler()); 
+  app.use(express.errorHandler());
 });
 
 // Routes
@@ -38,7 +56,7 @@ var getUsersList = function() {
     var user = {
       user_id: sessions[i].user_id,
       name: sessions[i].name
-    }
+    };
     users_list.push(user);
   }
   return users_list;
@@ -56,19 +74,18 @@ app.listen(3000, function() {
         var binary = new Uint8Array(length);
         for (var i = 0; i < length; i++) {
           binary[i] = req.readUInt8(i);
-        };
-        for (var i = 0; i < sessions.length; i++) {
-          sessions[i].socket.send(binary, {binary:true, mask:false});
-        };
+        }
+        for (var j = 0; j < sessions.length; j++) {
+          sessions[j].socket.send(binary, {binary:true, mask:false});
+        }
       } else {
-console.log(req);
         var msg = JSON.parse(req);
         var res = {
           type: msg.type
         };
         switch (msg.type) {
           case 'message':
-            console.log('received a message: "'+msg.message+'"');  
+            console.log('received a message: "'+msg.message+'"');
             res.name = _name;
             res.user_id = _user_id;
             res.message = msg.message;
@@ -79,7 +96,7 @@ console.log(req);
               name: _name || 'No Name',
               user_id: _user_id,
               socket: ws
-            }
+            };
             ws.send(JSON.stringify({
               user_id: user.user_id,
               name: user.name,
@@ -102,33 +119,33 @@ console.log(req);
             console.log('received invalid message.');
             return;
         }
-        for (var i = 0; i < sessions.length; i++) {
-          sessions[i].socket.send(JSON.stringify(res));
+        for (var k = 0; k < sessions.length; k++) {
+          sessions[k].socket.send(JSON.stringify(res));
         }
       }
-    })
+    });
     ws.on('close', function() {
       console.log(_name+' closed the connection.');
       for (var i = 0; i < sessions.length; i++) {
         if (sessions[i].socket == ws) {
           sessions.splice(i, 1);
-          if (sessions.length == 0) user_id = 0; // reset user_id
+          if (sessions.length === 0) user_id = 0; // reset user_id
         }
       }
-      for (var i = 0; i < sessions.length; i++) {
+      for (var l = 0; l < sessions.length; l++) {
         var msg = {
           user_id: _user_id,
           name: _name,
           type: 'connection',
           message: getUsersList()
         };
-        sessions[i].socket.send(JSON.stringify(msg));
+        sessions[l].socket.send(JSON.stringify(msg));
       }
     });
     ws.on('error', function(event) {
       console.log('error on connection:', event);
     });
-  })
+  });
 });
 
 console.log("Express server listening on port %d in %s mode", app.address().port, app.settings.env);

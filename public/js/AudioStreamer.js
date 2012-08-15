@@ -1,13 +1,32 @@
+/*
+Copyright 2012 Eiji Kitamura
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+Author: Eiji Kitamura (agektmr@gmail.com)
+*/
+'use strict';
+
 var AudioStreamer = (function() {
   var BUFFER_LENGTH = 2048,
       ws_host = window.location.href.replace(/(http|https)(:\/\/.*?)\//, 'ws$2'),
-      ac = null
+      ac = null;
   if (window.webkitAudioContext) {
     ac = new webkitAudioContext();
   } else {
     alert('You need Chrome to play with this demo');
     return;
-  };
+  }
 
   /*
    * user_id: user id of original sender (null if initialization)
@@ -144,7 +163,7 @@ var AudioStreamer = (function() {
           offset += 4;
           msg_obj.buffer_array = new Array(msg_obj.ch_num);
           for (var i = 0; i < msg_obj.ch_num; i++) {
-            msg_obj.buffer_array[i] = new Float32Array(msg_obj.buffer_length)
+            msg_obj.buffer_array[i] = new Float32Array(msg_obj.buffer_length);
             for (var j = 0; j < msg_obj.buffer_length; j++) {
               msg_obj.buffer_array[i][j] = view.getFloat32(offset);
               offset += 4;
@@ -155,9 +174,10 @@ var AudioStreamer = (function() {
           throw e;
         }
       }
-    }
+    };
   })();
 
+  // TODO: kill this
   var AttendeeManager = (function() {
     var _user_id = null,
         _name = '',
@@ -179,7 +199,7 @@ var AudioStreamer = (function() {
         var deletion = _attendees.filter(function(_attendee) {
           return attendees.every(function(attendee) {
             return (attendee.user_id != _attendee.user_id);
-          })
+          });
         });
         var addition = attendees.filter(function(attendee) {
         });
@@ -211,7 +231,7 @@ var AudioStreamer = (function() {
         buffers.push(that.audioBuffer[i].shift() || new Float32Array(BUFFER_LENGTH));
       }
       if (that.socket) { // only player have socket set
-        if (that.audioBuffer[0].length == 0) {
+        if (that.audioBuffer[0].length === 0) {
           that.stop();
         } else {
           var msg = AudioMessage.createMessage({
@@ -220,10 +240,10 @@ var AudioStreamer = (function() {
             buffer_array:buffers
           });
           that.socket.send(msg.buffer);
-        } 
+        }
       }
-      for (var i = 0; i < buffers.length; i++) {
-        event.outputBuffer.getChannelData(i).set(buffers[i]);
+      for (var j = 0; j < buffers.length; j++) {
+        event.outputBuffer.getChannelData(j).set(buffers[j]);
       }
     };
   };
@@ -255,36 +275,30 @@ var AudioStreamer = (function() {
     this.websocket = new WebSocket(ws_host+'/socket');
     this.websocket.onopen = function() {
       that.websocket.binaryType = 'arraybuffer';
-      console.debug('socket established.');
+console.debug('socket established.');
       if (typeof callback == 'function') {
         callback();
-      };
-      that.heartbeat = setInterval(as.sendHeartBeat.bind(that), 30 * 1000);
+      }
+      that.heartbeat = setInterval(that.sendHeartBeat.bind(that), 30 * 1000);
     };
     this.websocket.onmessage = function(req) {
+      var msg = '';
       try {
-        if (typeof req.data == 'string' && typeof that.onctrlmsg == 'function') {
-          console.debug(req.data);
+        if (typeof req.data == 'string') {
+console.debug(req.data);
           // string
-          var msg = TextMessage.parseMessage(req.data);
-          switch (msg.type) {
-          case 'connected':
+          msg = TextMessage.parseMessage(req.data);
+          if (msg.type == 'connected') {
             AttendeeManager.setUserId(msg.user_id);
-            break;
-          case 'connection':
-            AttendeeManager.setAttendees(msg.message);
-            that.onctrlmsg(msg);
-            break;
-          case 'message':
-            that.onMessage(msg.name+': '+msg.message);
-            break;
-          case 'start_music':
-            that.onMessage(msg.name+' started playing music');
-            break;
+            return;
           }
+          if (msg.type == 'connection') {
+            AttendeeManager.setAttendees(msg.message);
+          }
+          that.onMessage(msg);
         } else {
           // binary
-          var msg = AudioMessage.parseMessage(req.data);
+          msg = AudioMessage.parseMessage(req.data);
           if (msg.user_id == AttendeeManager.getUserId()) return; // skip if audio is originated from same user
           for (var ch = 0; ch < msg.ch_num; ch++) {
             that.listenerBuffer[ch].push(msg.buffer_array[ch]);
@@ -296,7 +310,6 @@ var AudioStreamer = (function() {
     };
     this.websocket.onclose = function() {
       clearInterval(that.heartbeat);
-      alert('connection closed.');
     };
     this.websocket.onerror = function() {
       alert('connection error.');
@@ -308,8 +321,8 @@ var AudioStreamer = (function() {
     // TODO: move visual element to outside
     this.visualizer = new SpectrumVisualizer(ac, {
       elem: document.getElementById('visualizer'),
-      width: 600,
-      height: 150
+      width: 580,
+      height: 178
     });
     this.visualizer.connect(this.audioMerger, ac.destination);
   };
@@ -328,6 +341,8 @@ var AudioStreamer = (function() {
       this.websocket.send(msg);
     },
     updatePlayer: function(file, callback, playEndCallback) {
+      if (file.type.indexOf('audio') !== 0)
+          throw 'this is not an audio file.';
       var that = this;
       if (this.audioPlayer) this.audioPlayer.stop();
       this.visualizer.disconnect();
@@ -345,7 +360,7 @@ var AudioStreamer = (function() {
             for (var i = 0; i < buffer.length; i++) {
               var index = ~~(i/BUFFER_LENGTH);
               var offset = i%BUFFER_LENGTH;
-              if (offset == 0) that.buffer[ch][index] = new Float32Array(BUFFER_LENGTH);
+              if (offset === 0) that.buffer[ch][index] = new Float32Array(BUFFER_LENGTH);
               that.buffer[ch][index][offset] = buffer.getChannelData(ch)[i];
             }
           }
@@ -381,7 +396,7 @@ var AudioStreamer = (function() {
         this.websocket.close();
         clearInterval(this.heartbeat);
         console.debug('socket disconnected.');
-      };
+      }
     }
   };
 

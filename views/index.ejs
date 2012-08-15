@@ -1,36 +1,75 @@
-<header>
-  <h1>Audio Stream Experiment</h1>
-  <p style="font-size:1.2em;">Get your audio file ready (short ones preferred). Enter your name, then connect.<br/>You can listen to other people's streaming music, or you can stream your own.</p>
-  <p>Powered by <a href="http://nodejs.org/" target="_blank">node.js</a>, <a href="https://github.com/einaros/ws" target="_blank">ws</a>, <a href="https://dvcs.w3.org/hg/audio/raw-file/tip/webaudio/specification.html" target="_blank">Web Audio API</a>, <a href="http://dev.w3.org/html5/websockets/" target="blank">WebSocket</a>. Developed by <a href="http://profiles.google.com/agektmr" target="_blank">Eiji Kitamura</a> (<a href="http://twitter.com/agektmr" target="_blank">@agektmr</a>). Source code can be found on <a href="https://github.com/agektmr/AudioStreamer" target="_blank">github</a>.</p>
+<header class="navbar">
+  <div class="navbar-inner">
+    <div class="brand">Audio Stream Experiment</div>
+  </div>
 </header>
-<section>
-  <div id="connection">
-    Your name: <input type="text" id="name" value="" />
-    <input type="button" id="connect" value="connect" />
+<section class="container" ng-controller="AudioStreamerCtrl">
+  <div class="hero-unit">
+    <p>Get your audio file ready (short ones preferred). Enter your name, then connect.<br/>You can listen to other people's streaming music, or you can stream your own.</p>
   </div>
-  <div>
-    <div id="player" style="display:none;">
-      <div id="dropper">
-        <p>Drop audio file here</p>
-        <input type="button" id="play_stop" value="play" disabled="disabled" />
-        <div id="notification"></div>
+  <div class="row">
+    <div class="span4">
+      <div id="attendee">
+        <table class="table table-condensed" style="max-height: 500px; overflow-y: scroll;">
+          <thead>
+            <tr>
+              <th>Attendees</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="form-inline">
+                <input type="text" id="name" ng-model="name" ng-disabled="!session_standby" placeholder="Enter your name and connect." style="width: 190px;" />
+                <input type="button" id="connect" class="btn" ng-class="{'btn-danger':!session_standby}" value="{{session_button}}" ng-click="toggle_session()" />
+              </td>
+            </tr>
+            <tr ng-repeat="attendee in attendees">
+              <td>{{attendee.name}}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-      <div id="visualizer">
+    </div>
+    <div class="span8">
+      <h3>Drop your audio file here</h3>
+      <div class="alert" ng-class="{'alert-success':notification_type=='success', 'alert-info':notification_type=='info', 'alert-error':notification_type=='error'}" ng-show="notification" style="position: absolute;">
+        {{notification}}
+      </div>
+      <div id="player" ng-controller="AudioCtrl" class="well">
+        <input type="button" id="play_stop" value="{{play_stop_button}}" class="btn btn-primary" ng-disabled="session_standby" ng-click="play_stop()" />
+        <div id="visualizer" style="width: 580px; height:178px;"></div>
+      </div>
+      <div id="conversation">
+        <div>
+          <div id="message" class="form-inline">
+            <input type="text" id="text" value="" ng-model="message" placeholder="Type text and enter to send chat" />
+          </div>
+          <div style="height: 300px; overflow-y: scroll;">
+            <table class="table table-condensed">
+              <colgroup>
+                <col class="span2">
+                <col class="span6">
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Message</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr ng-repeat="message in messages">
+                  <td>{{message.name}}</td>
+                  <td ng-class="{muted:message.type=='start_music'}">{{message.message}}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   </div>
-  <div id="conversation" style="display:none;">
-    <div id="attendee">
-      <span>attendees:</span>
-      <ul id="attendees"></ul>
-    </div>
-    <div>
-      <div id="message" style="display:none;">
-        Message: <input type="text" id="text" value="" />
-      </div>
-      <ul id="msg"></ul>
-    </div>
-  </div>
+  <hr>
+  <footer class="footer">
+    <p>Powered by <a href="http://nodejs.org/" target="_blank">node.js</a>, <a href="https://github.com/einaros/ws" target="_blank">ws</a>, <a href="https://dvcs.w3.org/hg/audio/raw-file/tip/webaudio/specification.html" target="_blank">Web Audio API</a> and <a href="http://dev.w3.org/html5/websockets/" target="blank">WebSocket</a>. Developed by <a href="http://profiles.google.com/agektmr" target="_blank">Eiji Kitamura</a> (<a href="http://twitter.com/agektmr" target="_blank">@agektmr</a>). Source code can be found on <a href="https://github.com/agektmr/AudioStreamer" target="_blank">github</a>.</p>
+  </footer>
 </section>
-<footer>
-</footer>
