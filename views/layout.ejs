@@ -3,6 +3,7 @@
   <head>
     <title><%= title %></title>
     <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
     <script src="js/AudioStreamer.js"></script>
     <script src="js/SpectrumVisualizer.js"></script>
@@ -78,6 +79,8 @@
           }, function() {
             $('#play_stop').val('play');
           });
+          e.preventDefault();
+          e.stopPropagation();
         };
       }
     </script>
