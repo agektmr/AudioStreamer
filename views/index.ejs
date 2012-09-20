@@ -6,6 +6,7 @@
 <section class="container" ng-controller="AudioStreamerCtrl">
   <div class="hero-unit">
     <p>Get your audio file ready (short ones preferred). Enter your name, then connect.<br/>You can listen to other people's streaming music, or you can stream your own.</p>
+    <p>*New!* If you are using Mac with Chrome Canary, you can try microphone input. Turn on "Web Audio Input" flag on chrome://flags and restart. (2012/9/19)</p>
   </div>
   <div class="row">
     <div class="span4">
@@ -32,7 +33,7 @@
     </div>
     <div class="span8">
       <h3>Drop your audio file here</h3>
-      <div class="alert" ng-class="{'alert-success':notification_type=='success', 'alert-info':notification_type=='info', 'alert-error':notification_type=='error'}" ng-show="notification" style="position: absolute;">
+      <div class="alert" ng-class="{'alert-success':notification_type=='success', 'alert-info':notification_type=='info', 'alert-error':notification_type=='error'}" ng-show="notification" style="position: fixed; width: 300px; top:10px; right:10px;">
         {{notification}}
       </div>
       <div id="player" ng-controller="AudioCtrl" class="well">
