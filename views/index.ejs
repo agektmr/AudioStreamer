@@ -19,8 +19,8 @@
           <tbody>
             <tr>
               <td class="form-inline">
-                <input type="text" id="name" ng-model="name" ng-disabled="!session_standby" placeholder="Enter your name and connect." style="width: 190px;" />
-                <input type="button" id="connect" class="btn" ng-class="{'btn-danger':!session_standby}" value="{{session_button}}" ng-click="toggle_session()" />
+                <input type="text" id="name" ng-model="name" ng-disabled="websocket_started" placeholder="Enter your name and connect." style="width: 190px;" />
+                <input type="button" id="connect" class="btn" ng-class="{'btn-danger':websocket_started}" value="{{session_button}}" ng-click="toggle_session()" />
               </td>
             </tr>
             <tr ng-repeat="attendee in attendees">
@@ -36,7 +36,8 @@
         {{notification}}
       </div>
       <div id="player" ng-controller="AudioCtrl" class="well">
-        <input type="button" id="play_stop" value="{{play_stop_button}}" class="btn btn-primary" ng-disabled="session_standby" ng-click="play_stop()" />
+        <input type="button" id="play_stop" value="{{play_stop_button}}" class="btn btn-primary" ng-show="websocket_started" ng-disabled="!source_connected" ng-click="play_stop()" />
+        <input type="button" id="connect_audio_input" value="{{connect_audio_input_button}}" class="btn btn-primary" ng-show="websocket_started" ng-disabled="source_connected" ng-click="connect_audio_input()" />
         <div id="visualizer" style="width: 580px; height:178px;"></div>
       </div>
       <div id="conversation">

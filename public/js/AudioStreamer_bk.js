@@ -23,6 +23,7 @@ var AudioStreamer = (function() {
       ac = null;
   if (window.webkitAudioContext) {
     ac = new webkitAudioContext();
+    var audioMerger = ac.createChannelMerger();
   } else {
     alert('You need Chrome to play with this demo');
     return;
@@ -177,7 +178,6 @@ var AudioStreamer = (function() {
     };
   })();
 
-  // TODO: kill this
   var AttendeeManager = (function() {
     var _user_id = null,
         _name = '',
@@ -196,155 +196,100 @@ var AudioStreamer = (function() {
         return _name;
       },
       setAttendees: function(attendees) {
-        var deletion = _attendees.filter(function(_attendee) {
-          return attendees.every(function(attendee) {
-            return (attendee.user_id != _attendee.user_id);
-          });
+        _attendees.forEach(function(_attendee) {
+          if (attendees.every(function(attendee) {
+            if (attendee.user_id != _attendee.user_id) {
+              return true;
+            } else {
+              attendee.listener = _attendee.listener;
+              attendee.buffer = _attendee.buffer;
+              return false;
+            }
+          })) {
+            _attendee.listener.stop();
+            delete _attendee.listener;
+            delete _attendee.buffer;
+          }
         });
-        var addition = attendees.filter(function(attendee) {
+        attendees.forEach(function(attendee) {
+          if (!attendee.listener) {
+            attendee.buffer = [[],[]];
+            attendee.listener = new AudioPlayer(attendee.buffer, audioMerger);
+            attendee.listener.listen();
+            console.debug(attendee);
+          }
         });
         _attendees = attendees;
       },
       getAttendees: function() {
         return _attendees;
       },
-      addAudioPlayer: function(user_id, destination) {
+      removeAttendees: function() {
+        _attendees.forEach(function(_attendee) {
+          _attendee.listener.stop();
+        });
       },
-      removeAudioPlayer: function(user_id) {
+      getUserFromAttendees: function(user_id) {
+        for (var i = 0; i < _attendees.length; i++) {
+          if (_attendee[i].user_id == user_id) return _attendees[i];
+        }
+        return null;
       }
     };
   })();
 
-  var AudioSource = function() {
-    this.buffer = [[], []];
-    this.js = ac.createJavaScriptNode(BUFFER_LENGTH, 2, 2);
-    this.js.onaudioprocess = this.onaudioprocess.bind(this);
-    this.socket = null;
-    this.getBufferCallback = null;
-  };
-  AudioSource.prototype = {
-    onaudioprocess: function(event) {
-      if (typeof this.getBufferCallback === 'function')
-        this.getBufferCallback();
-
-      var buffers = [];
-      for (var ch = 0; ch < this.buffer.length; ch++) {
-        buffers.push(this.buffer[ch].shift() || new Float32Array(BUFFER_LENGTH));
-      }
-      if (this.socket) { // only player have socket set
-        var msg = AudioMessage.createMessage({
-          user_id:AttendeeManager.getUserId(),
-          buffer_length:BUFFER_LENGTH,
-          buffer_array:buffers
-        });
-        this.socket.send(msg.buffer);
-      }
-      for (ch = 0; ch < buffers.length; ch++) {
-        event.outputBuffer.getChannelData(ch).set(buffers[ch]);
-      }
-    },
-    connect: function(destination) {
-      this.js.connect(destination);
-    },
-    disconnect: function() {
-      this.js.disconnect();
-    },
-    connectSocket: function(socket) {
-      this.socket = socket;
-    },
-    setBuffer: function(buffer) {
-      for (var ch = 0; ch < buffer.length; ch++) {
-        this.buffer[ch].push(buffer[ch]);
-      }
-    }
-  };
-
-  var InputSource = function(stream) {
-    this.stream = stream;
-    this.media = ac.createMediaStreamSource(stream);
-    this.js = ac.createJavaScriptNode(BUFFER_LENGTH, 2, 2);
-    this.js.onaudioprocess = this.onaudioprocess.bind(this);
-    this.media.connect(this.js);
-    this.socket = null;
-  };
-  InputSource.prototype = {
-    onaudioprocess: function(event) {
-      var buffers = [];
-      for (var i = 0; i < event.inputBuffer.numberOfChannels; i++) {
-        buffers[i] = event.inputBuffer.getChannelData(i);
-      }
-      if (this.socket) { // only player have socket set
-        var msg = AudioMessage.createMessage({
-          user_id:AttendeeManager.getUserId(),
-          buffer_length:BUFFER_LENGTH,
-          buffer_array:buffers
-        });
-        this.socket.send(msg.buffer);
-      }
-      for (i = 0; i < buffers.length; i++) {
-        event.outputBuffer.getChannelData(i).set(buffers[i]);
-      }
-    },
-    connect: function(destination) {
-      this.js.connect(destination);
-    },
-    disconnect: function() {
-      this.media.mediaStream.stop();
-      this.js.disconnect();
-    },
-    connectSocket: function(socket) {
-      this.socket = socket;
-    }
-  };
-
-  var AudioPlayer = function(source, destination, onplayend) {
-    this.source = source;
-    if (typeof onplayend === 'function')
-      this.onplayend = onplayend;
+  var AudioPlayer = function(bufferArray, destination, socket) {
+    var that = this;
     this.destination = destination;
+    // audioBuffer is source of streaming buffers
+    this.audioBuffer = bufferArray;
+    this.socket = socket || null;
     this.isPlaying = false;
-    this.buffer = [[], []]; // temprary buffer for playback
-    this.sound = []; // storage for whole audio
+    this.onPlayEnd = null;
+
+    this.js = ac.createJavaScriptNode(BUFFER_LENGTH, 2, 2);
+    this.js.onaudioprocess = function(event) {
+      var buffers = [];
+      for (var i = 0; i < that.audioBuffer.length; i++) {
+        buffers.push(that.audioBuffer[i].shift() || new Float32Array(BUFFER_LENGTH));
+      }
+      if (that.socket) { // only player have socket set
+        if (that.audioBuffer[0].length === 0) {
+          that.stop();
+        } else {
+          var msg = AudioMessage.createMessage({
+            user_id:AttendeeManager.getUserId(),
+            buffer_length:BUFFER_LENGTH,
+            buffer_array:buffers
+          });
+          that.socket.send(msg.buffer);
+        }
+      }
+      for (var j = 0; j < buffers.length; j++) {
+        event.outputBuffer.getChannelData(j).set(buffers[j]);
+      }
+    };
   };
   AudioPlayer.prototype = {
     listen: function() {
-      this.source.connect(this.destination);
+      this.js.connect(this.destination);
     },
     play: function() {
-      for (var ch = 0; ch < this.sound.length; ch++) {
-        for (var i = 0; i < this.sound[ch].length; i++) {
-          this.buffer[ch].push(this.sound[ch][i]);
-        }
-      }
-      this.source.connect(this.destination);
+      this.js.connect(this.destination);
       this.isPlaying = true;
     },
     stop: function() {
-      this.source.disconnect();
+      this.js.disconnect();
       this.isPlaying = false;
-    },
-    setBuffer: function(buffer) {
-      this.sound = buffer;
-      this.source.getBufferCallback = this.getBuffer.bind(this);
-    },
-    getBuffer: function() {
-      var buffer = [];
-      for (var ch = 0; ch < this.buffer.length; ch++) {
-        buffer[ch] = this.buffer[ch].shift();
-      }
-      this.source.setBuffer(buffer);
-      if (this.buffer[0].length === 0) {
-        this.onplayend();
-      }
+      if (typeof this.onPlayEnd == 'function') this.onPlayEnd();
     }
   };
 
-  var AudioStreamer = function(host, callback) {
+  var AudioStreamer = function(origin, callback) {
     var that = this;
-    ws_host = host;
+    ws_host = origin;
     this.listenerBuffer = [[],[]];
-    this.buffer = [];
-    this.source = null;
+    this.playerBuffer = [[],[]];
     this.audioReady = false;
     this.onctrlmsg = null;
     this.onMessage = null;
@@ -353,7 +298,7 @@ var AudioStreamer = (function() {
     this.websocket = new WebSocket(ws_host+'/socket');
     this.websocket.onopen = function() {
       that.websocket.binaryType = 'arraybuffer';
-console.debug('socket established.');
+      console.debug('socket established.');
       if (typeof callback == 'function') {
         callback();
       }
@@ -362,27 +307,33 @@ console.debug('socket established.');
     this.websocket.onmessage = function(req) {
       var msg = '';
       try {
-        if (typeof req.data == 'string') {
-console.debug(req.data);
+        if (typeof req.data == 'string' && typeof that.onctrlmsg == 'function') {
+          console.debug(req.data);
           // string
           msg = TextMessage.parseMessage(req.data);
-          if (msg.type == 'connected') {
+          switch (msg.type) {
+          case 'connected':
             AttendeeManager.setUserId(msg.user_id);
-            return;
-          }
-          if (msg.type == 'connection') {
+            break;
+          case 'connection':
             AttendeeManager.setAttendees(msg.message);
+            that.onctrlmsg(msg);
+            break;
+          case 'message':
+            that.onMessage(msg.name+': '+msg.message);
+            break;
+          case 'start_music':
+            that.onMessage(msg.name+' started playing music');
+            break;
           }
-          that.onMessage(msg);
         } else {
           // binary
           msg = AudioMessage.parseMessage(req.data);
           if (msg.user_id == AttendeeManager.getUserId()) return; // skip if audio is originated from same user
-          var buffers = [];
+          var user = AttendeeManager.getUserFromAttendees(msg.user_id);
           for (var ch = 0; ch < msg.ch_num; ch++) {
-            buffers[ch] = msg.buffer_array[ch];
+            user.buffer[ch].push(msg.buffer_array[ch]);
           }
-          that.audioListener.source.setBuffer(buffers);
         }
       } catch(e) {
         throw e;
@@ -390,23 +341,19 @@ console.debug(req.data);
     };
     this.websocket.onclose = function() {
       clearInterval(that.heartbeat);
+      alert('connection closed.');
     };
     this.websocket.onerror = function() {
       alert('connection error.');
     };
 
-    this.audioMerger = ac.createChannelMerger();
-    // this is currently only one listener. TODO: Create listener per user
-    var listenerSource = new AudioSource();
-    this.audioListener = new AudioPlayer(listenerSource, this.audioMerger);
-    this.audioListener.listen();
     // TODO: move visual element to outside
     this.visualizer = new SpectrumVisualizer(ac, {
       elem: document.getElementById('visualizer'),
-      width: 580,
-      height: 178
+      width: 600,
+      height: 150
     });
-    this.visualizer.connect(this.audioMerger, ac.destination);
+    this.visualizer.connect(audioMerger, ac.destination);
   };
   AudioStreamer.prototype = {
     nameSelf: function(name) {
@@ -422,50 +369,39 @@ console.debug(req.data);
       var msg = TextMessage.createMessage('heartbeat');
       this.websocket.send(msg);
     },
-    connectPlayer: function(stream, callback, onplayend) {
-      if (this.audioPlayer) this.audioPlayer.stop();
-      this.visualizer.disconnect();
-      this.audioReady = true;
-
-      this.source = new InputSource(stream);
-      this.source.connectSocket(this.websocket);
-      this.audioPlayer = new AudioPlayer(this.source, this.audioMerger, onplayend);
-      this.visualizer.connect(this.audioMerger, ac.destination);
-      this.audioPlayer.play();
-      callback();
-    },
-    updatePlayer: function(file, callback, onplayend) {
+    updatePlayer: function(file, callback, playEndCallback) {
       if (file.type.indexOf('audio') !== 0)
-          throw 'this is not an audio file.';
+        throw 'this is not an audio file.';
       var that = this;
       if (this.audioPlayer) this.audioPlayer.stop();
       this.visualizer.disconnect();
       this.audioReady = false;
 
-      this.source = new AudioSource();
-      this.source.connectSocket(this.websocket);
-      this.audioPlayer = new AudioPlayer(this.source, this.audioMerger, onplayend);
+      this.audioPlayer = new AudioPlayer(this.playerBuffer, audioMerger, this.websocket);
+      if (playEndCallback) this.audioPlayer.onPlayEnd = playEndCallback;
 
       var reader = new FileReader();
       reader.onload = function(e) {
         ac.decodeAudioData(e.target.result, function(buffer) {
-          var buffers = [];
+          that.buffer = [];
           for (var ch = 0; ch < buffer.numberOfChannels; ch++) {
-            buffers[ch] = [];
+            that.buffer[ch] = [];
             for (var i = 0; i < buffer.length; i++) {
               var index = ~~(i/BUFFER_LENGTH);
               var offset = i%BUFFER_LENGTH;
-              if (offset === 0) buffers[ch][index] = new Float32Array(BUFFER_LENGTH);
-              buffers[ch][index][offset] = buffer.getChannelData(ch)[i];
+              if (offset === 0) that.buffer[ch][index] = new Float32Array(BUFFER_LENGTH);
+              that.buffer[ch][index][offset] = buffer.getChannelData(ch)[i];
             }
           }
-          that.audioPlayer.setBuffer(buffers);
           that.audioReady = true;
-          that.visualizer.connect(that.audioMerger, ac.destination);
+          that.visualizer.connect(audioMerger, ac.destination);
           callback();
         }, function() {
           throw 'failed to load audio.';
         });
+      };
+      reader.onerror = function(e) {
+        throw e.message;
       };
       reader.readAsArrayBuffer(file);
     },
@@ -475,6 +411,11 @@ console.debug(req.data);
         name: AttendeeManager.getName(),
         type: 'start_music'
       }));
+      for (var ch = 0; ch < this.buffer.length; ch++) {
+        for (var i = 0; i < this.buffer[ch].length; i++) {
+          this.playerBuffer[ch][i] = this.buffer[ch][i];
+        }
+      }
       this.audioPlayer.play();
     },
     stop: function() {
@@ -483,7 +424,7 @@ console.debug(req.data);
     disconnect: function() {
       if (this.websocket.close) {
         this.stop();
-        this.audioListener.stop();
+        AttendeeManager.removeAttendees();
         this.websocket.close();
         clearInterval(this.heartbeat);
         console.debug('socket disconnected.');
@@ -491,7 +432,7 @@ console.debug(req.data);
     }
   };
 
-  return function(host, callback) {
-    return new AudioStreamer(host, callback);
+  return function(origin, callback) {
+    return new AudioStreamer(origin, callback);
   };
 })();
