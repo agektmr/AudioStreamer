@@ -392,7 +392,7 @@ console.debug(req.data);
       clearInterval(that.heartbeat);
     };
     this.websocket.onerror = function() {
-      alert('connection error.');
+      console.log('connection error.');
     };
 
     this.audioMerger = ac.createChannelMerger();
