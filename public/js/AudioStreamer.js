@@ -96,87 +96,6 @@ var AudioStreamer = (function() {
     }
   };
 
-  var AudioMessage = (function() {
-    /*
-     * JSON Schema (extended with TypedArray)
-     * {
-     *   "name": "AudioMessage",
-     *   "properties": {
-     *     "user_id": {
-     *       "type": "Uint32Array",
-     *       "description": "user id of original sender",
-     *       "required": true
-     *     },
-     *     "ch_num": {
-     *       "type": "Uint8Array",
-     *       "description": "number of channels",
-     *       "required": true
-     *     }
-     *     "buffer_length": {
-     *       "type": "Uint32Array",
-     *       "descriptoin": "audio buffer length",
-     *       "required": true
-     *     },
-     *     "buffer_array": {
-     *       "type": "array",
-     *       "description": "concatenated array of audio buffers through all channels",
-     *       "required": true
-     *       "items": {
-     *         "type": "Float32Array",
-     *         "description": "audio buffer"
-     *       }
-     *     }
-     *   }
-     * }
-     */
-    return {
-      createMessage: function(msg_obj) {
-        var bl = msg_obj.buffer_length;
-        var ch_num = msg_obj.buffer_array.length;
-        var ab = new ArrayBuffer(4 + 1 + 4 + (bl * ch_num * 4));
-        var view = new DataView(ab);
-        var offset = 0;
-        view.setUint32(offset, msg_obj.user_id);
-        offset += 4;
-        view.setUint8(offset, ch_num);
-        offset += 1;
-        view.setUint32(offset, bl);
-        offset += 4;
-        for (var i = 0; i < ch_num; i++) {
-          for (var j = 0; j < bl; j++) {
-            view.setFloat32(offset, msg_obj.buffer_array[i][j]);
-            offset += 4;
-          }
-        }
-        return new Uint8Array(view.buffer);
-      },
-      parseMessage: function(bin_msg) {
-        try {
-          var offset = 0;
-          var msg_obj = {};
-          var view = new DataView(bin_msg);
-          msg_obj.user_id = view.getUint32(0);
-          offset += 4;
-          msg_obj.ch_num = view.getUint8(4);
-          offset += 1;
-          msg_obj.buffer_length = view.getUint32(5);
-          offset += 4;
-          msg_obj.buffer_array = new Array(msg_obj.ch_num);
-          for (var i = 0; i < msg_obj.ch_num; i++) {
-            msg_obj.buffer_array[i] = new Float32Array(msg_obj.buffer_length);
-            for (var j = 0; j < msg_obj.buffer_length; j++) {
-              msg_obj.buffer_array[i][j] = view.getFloat32(offset);
-              offset += 4;
-            }
-          }
-          return msg_obj;
-        } catch (e) {
-          throw e;
-        }
-      }
-    };
-  })();
-
   // TODO: kill this
   var AttendeeManager = (function() {
     var _user_id = null,
@@ -232,12 +151,13 @@ var AudioStreamer = (function() {
         buffers.push(this.buffer[ch].shift() || new Float32Array(BUFFER_LENGTH));
       }
       if (this.socket) { // only player have socket set
-        var msg = AudioMessage.createMessage({
+        var buffer = binarize.pack({
           user_id:AttendeeManager.getUserId(),
+          ch_num:buffers.length,
           buffer_length:BUFFER_LENGTH,
           buffer_array:buffers
         });
-        this.socket.send(msg.buffer);
+        this.socket.send(buffer);
       }
       for (ch = 0; ch < buffers.length; ch++) {
         event.outputBuffer.getChannelData(ch).set(buffers[ch]);
@@ -274,12 +194,13 @@ var AudioStreamer = (function() {
         buffers[i] = event.inputBuffer.getChannelData(i);
       }
       if (this.socket) { // only player have socket set
-        var msg = AudioMessage.createMessage({
+        var buffer = binarize.pack({
           user_id:AttendeeManager.getUserId(),
+          ch_num:buffers.length,
           buffer_length:BUFFER_LENGTH,
           buffer_array:buffers
         });
-        this.socket.send(msg.buffer);
+        this.socket.send(buffer);
       }
       for (i = 0; i < buffers.length; i++) {
         event.outputBuffer.getChannelData(i).set(buffers[i]);
@@ -376,7 +297,7 @@ console.debug(req.data);
           that.onMessage(msg);
         } else {
           // binary
-          msg = AudioMessage.parseMessage(req.data);
+          msg = binarize.unpack(req.data);
           if (msg.user_id == AttendeeManager.getUserId()) return; // skip if audio is originated from same user
           var buffers = [];
           for (var ch = 0; ch < msg.ch_num; ch++) {
