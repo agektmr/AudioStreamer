@@ -1,0 +1,3 @@
+[submodule "public/lib/binarize.js"]
+	path = public/lib/binarize.js
+	url = git@github.com:agektmr/binarize.js.git
