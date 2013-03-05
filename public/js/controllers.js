@@ -20,7 +20,32 @@ Author: Eiji Kitamura (agektmr@gmail.com)
 var WS_HOST = window.location.href.replace(/(http|https)(:\/\/.*?)\//, 'ws$2'),
     as = null;
 
+var audioContext = window.audioContext ? new window.audioContext() :
+                   window.webkitAudioContext ? new window.webkitAudioContext() :
+                   window.mozAudioContext ? new window.mozAudioContext() :
+                   window.oAudioContext ? new window.oAudioContext() :
+                   window.msAudioContext ? new window.msAudioContext() :
+                   undefined;
+var getUserMedia = navigator.getUserMedia ? 'getUserMedia' :
+                   navigator.webkitGetUserMedia ? 'webkitGetUserMedia' :
+                   navigator.mozGetUserMedia ? 'mozGetUserMedia' :
+                   navigator.oGetUserMedia ? 'oGetUserMedia' :
+                   navigator.msGetUserMedia ? 'msGetUserMedia' :
+                   undefined;
+
 var AudioStreamerCtrl = function($scope) {
+  var error_msg = [];
+  if (!WebSocket) {
+    error_msg.push("Your browser doesn't seem to support WebSocket.");
+  }
+  if (!audioContext) {
+    error_msg.push("Your browser doesn't seem to support Web Audio API.");
+  }
+  if (!getUserMedia) {
+    error_msg.push("Your browser doesn't seem to support WebRTC.");
+  }
+
+  $scope.browser_alerts = error_msg;
   $scope.websocket_started = false;
   $scope.input_started = false;
   $scope.audio_loaded = false;
@@ -86,7 +111,7 @@ var AudioStreamerCtrl = function($scope) {
     type = type || 'info';
     $scope.notification = message;
     $scope.notification_type = type;
-    $scope.$apply();
+    if (!$scope.$$phase) $scope.$apply();
     if (!sticky) {
       setTimeout(function() {
         $scope.notification = '';
@@ -105,28 +130,32 @@ var AudioStreamerCtrl = function($scope) {
 };
 
 var AudioCtrl = function($scope) {
+  $scope.mode = 'file';
   $scope.playing = false;
   $scope.loading = false;
   $scope.play_stop_button = 'Play';
   $scope.connect_audio_input_button = 'Connect microphone';
   $scope.input_connected = false;
   $scope.load_audio = function(e) {
-    var file = e.dataTransfer.files[0];
-    $scope.loading = true;
-    $scope.notify('loading audio. just a second...', 'info', true);
-    $scope.streamer.updatePlayer(file, function() {
-      $scope.notify('audio loaded. ready to play!', 'success');
-      $scope.source_connected = true;
-      $scope.audio_loaded = true;
-      $scope.input_started = true;
-      $scope.loading = false;
-      $scope.$apply();
-    }, $scope.play_stop);
+    player.style.backgroundColor = '';
     e.preventDefault();
     e.stopPropagation();
+    if ($scope.mode == 'file' && $scope.websocket_started) {
+      var file = e.dataTransfer.files[0];
+      $scope.loading = true;
+      $scope.notify('loading audio. just a second...', 'info', true);
+      $scope.streamer.updatePlayer(file, function() {
+        $scope.notify('audio loaded. ready to play!', 'success');
+        $scope.source_connected = true;
+        $scope.audio_loaded = true;
+        $scope.input_started = true;
+        $scope.loading = false;
+        $scope.$apply();
+      }, $scope.play_stop);
+    }
   };
   $scope.connect_audio_input = function(e) {
-    navigator.webkitGetUserMedia({audio:true}, function(stream) {
+    navigator[getUserMedia]({audio:true}, function(stream) {
       $scope.input_connected = true;
       $scope.streamer.connectPlayer(stream, function() {
         $scope.notify('audio input started.', 'success');
@@ -144,6 +173,7 @@ var AudioCtrl = function($scope) {
     if ($scope.play_stop_button == 'Stop') {
       $scope.streamer.stop();
       $scope.play_stop_button = 'Play';
+      if (!$scope.$$phase) $scope.$apply();
     } else {
       $scope.streamer.play();
       $scope.play_stop_button = 'Stop';
@@ -152,12 +182,19 @@ var AudioCtrl = function($scope) {
 
   var player = document.querySelector('#player');
   player.ondragenter = function(e) {
-    // $('#player').css('backgroundColor', '#eee');
+    if ($scope.mode == 'file' && $scope.websocket_started) {
+      player.style.backgroundColor = '#eee';
+    }
   };
   player.ondragleave = function(e) {
-    // $('#player').css('backgroundColor', '#fff');
+    if ($scope.mode == 'file' && $scope.websocket_started) {
+      player.style.backgroundColor = '';
+    }
   };
   player.ondragover = function(e) {
+    if ($scope.mode == 'file' && $scope.websocket_started) {
+      player.style.backgroundColor = '#eee';
+    }
     e.preventDefault();
   };
   player.ondrop = $scope.load_audio;

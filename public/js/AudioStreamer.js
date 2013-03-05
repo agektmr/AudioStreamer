@@ -19,14 +19,7 @@ Author: Eiji Kitamura (agektmr@gmail.com)
 
 var AudioStreamer = (function() {
   var BUFFER_LENGTH = 2048,
-      ws_host = window.location.href.replace(/(http|https)(:\/\/.*?)\//, 'ws$2'),
-      ac = null;
-  if (window.webkitAudioContext) {
-    ac = new webkitAudioContext();
-  } else {
-    alert('You need Chrome to play with this demo');
-    return;
-  }
+      ws_host = window.location.href.replace(/(http|https)(:\/\/.*?)\//, 'ws$2');
 
   /*
    * user_id: user id of original sender (null if initialization)
@@ -136,7 +129,7 @@ var AudioStreamer = (function() {
 
   var AudioSource = function() {
     this.buffer = [[], []];
-    this.js = ac.createJavaScriptNode(BUFFER_LENGTH, 2, 2);
+    this.js = audioContext.createJavaScriptNode(BUFFER_LENGTH, 2, 2);
     this.js.onaudioprocess = this.onaudioprocess.bind(this);
     this.socket = null;
     this.getBufferCallback = null;
@@ -181,8 +174,8 @@ var AudioStreamer = (function() {
 
   var InputSource = function(stream) {
     this.stream = stream;
-    this.media = ac.createMediaStreamSource(stream);
-    this.js = ac.createJavaScriptNode(BUFFER_LENGTH, 2, 2);
+    this.media = audioContext.createMediaStreamSource(stream);
+    this.js = audioContext.createJavaScriptNode(BUFFER_LENGTH, 2, 2);
     this.js.onaudioprocess = this.onaudioprocess.bind(this);
     this.media.connect(this.js);
     this.socket = null;
@@ -316,18 +309,18 @@ console.debug(req.data);
       console.log('connection error.');
     };
 
-    this.audioMerger = ac.createChannelMerger();
+    this.audioMerger = audioContext.createChannelMerger();
     // this is currently only one listener. TODO: Create listener per user
     var listenerSource = new AudioSource();
     this.audioListener = new AudioPlayer(listenerSource, this.audioMerger);
     this.audioListener.listen();
     // TODO: move visual element to outside
-    this.visualizer = new SpectrumVisualizer(ac, {
+    this.visualizer = new SpectrumVisualizer(audioContext, {
       elem: document.getElementById('visualizer'),
       width: 580,
       height: 178
     });
-    this.visualizer.connect(this.audioMerger, ac.destination);
+    this.visualizer.connect(this.audioMerger, audioContext.destination);
   };
   AudioStreamer.prototype = {
     nameSelf: function(name) {
@@ -351,7 +344,7 @@ console.debug(req.data);
       this.source = new InputSource(stream);
       this.source.connectSocket(this.websocket);
       this.audioPlayer = new AudioPlayer(this.source, this.audioMerger, onplayend);
-      this.visualizer.connect(this.audioMerger, ac.destination);
+      this.visualizer.connect(this.audioMerger, audioContext.destination);
       this.audioPlayer.play();
       callback();
     },
@@ -369,7 +362,7 @@ console.debug(req.data);
 
       var reader = new FileReader();
       reader.onload = function(e) {
-        ac.decodeAudioData(e.target.result, function(buffer) {
+        audioContext.decodeAudioData(e.target.result, function(buffer) {
           var buffers = [];
           for (var ch = 0; ch < buffer.numberOfChannels; ch++) {
             buffers[ch] = [];
@@ -382,7 +375,7 @@ console.debug(req.data);
           }
           that.audioPlayer.setBuffer(buffers);
           that.audioReady = true;
-          that.visualizer.connect(that.audioMerger, ac.destination);
+          that.visualizer.connect(that.audioMerger, audioContext.destination);
           callback();
         }, function() {
           throw 'failed to load audio.';

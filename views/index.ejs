@@ -7,8 +7,13 @@
 </header>
 <section class="container" ng-controller="AudioStreamerCtrl">
   <div class="hero-unit">
-    <p>Get your audio file ready (short ones preferred). Enter your name, then connect.<br/>You can listen to other people's streaming music, or you can stream your own.</p>
-    <p>*New!* If you are using Mac with Chrome Canary, you can try microphone input. Turn on "Web Audio Input" flag on chrome://flags and restart. (2012/9/19)</p>
+    <p>Try <strong>Audio Streaming over WebSocket</strong>.  (Latest Chrome browser recommended)</p>
+    <p><small>...Enter your name and connect to start.</small></p>
+    <div ng-show="browser_alerts">
+      <ul>
+        <li class="text-error" ng-repeat="alert in browser_alerts">{{alert}}</li>
+      </ul>
+    </div>
   </div>
   <div class="row">
     <div class="span4">
@@ -23,7 +28,7 @@
             <tr>
               <td class="form-inline">
                 <input type="text" id="name" ng-model="name" ng-disabled="websocket_started" placeholder="Enter your name and connect." style="width: 190px;" />
-                <input type="button" id="connect" class="btn" ng-class="{'btn-danger':websocket_started}" value="{{session_button}}" ng-click="toggle_session()" />
+                <input type="button" id="connect" class="btn btn-small" ng-class="{'btn-danger':websocket_started}" value="{{session_button}}" ng-click="toggle_session()" />
               </td>
             </tr>
             <tr ng-repeat="attendee in attendees">
@@ -34,21 +39,23 @@
       </div>
     </div>
     <div class="span8">
-      <h3>Drop your audio file here</h3>
-      <div class="alert" ng-class="{'alert-success':notification_type=='success', 'alert-info':notification_type=='info', 'alert-error':notification_type=='error'}" ng-show="notification" style="position: fixed; width: 300px; top:10px; right:10px;">
-        {{notification}}
-      </div>
       <div id="player" ng-controller="AudioCtrl" class="well">
-        <input type="button" id="play_stop" value="{{play_stop_button}}" class="btn btn-primary" ng-show="websocket_started" ng-disabled="!source_connected" ng-click="play_stop()" />
-        <input type="button" id="connect_audio_input" value="{{connect_audio_input_button}}" class="btn btn-primary" ng-show="websocket_started" ng-disabled="source_connected" ng-click="connect_audio_input()" />
+        <div class="alert" ng-class="{'alert-success':notification_type=='success', 'alert-info':notification_type=='info', 'alert-error':notification_type=='error'}" ng-show="notification" style="position: fixed; font-size: 1.5em; width: 200px; min-height:50px; top:10px; right:10px;">{{notification}}</div>
+        <select ng-model="mode" ng-disabled="!websocket_started" >
+          <option value="file">Audio File</option>
+          <option value="mic">Microphone</option>
+        </select>
+        <input type="button" id="play_stop" value="{{play_stop_button}}" class="btn btn-primary" ng-show="websocket_started&&mode=='file'" ng-disabled="!source_connected" ng-click="play_stop()" />
+        <span ng-show="mode=='file'&&websocket_started">Drop audio file and hit "Play"</span>
+        <input type="button" id="connect_audio_input" value="{{connect_audio_input_button}}" class="btn btn-primary" ng-show="websocket_started&&mode=='mic'" ng-disabled="source_connected" ng-click="connect_audio_input()" />
         <div id="visualizer" style="width: 580px; height:178px;"></div>
       </div>
       <div id="conversation">
         <div>
           <div id="message" class="form-inline">
-            <input type="text" id="text" value="" ng-model="message" placeholder="Type text and enter to send chat" />
+            <input type="text" id="text" value="" ng-model="message" placeholder="Type text and enter to send chat" ng-disabled="!websocket_started" />
           </div>
-          <div style="height: 300px; overflow-y: scroll;">
+          <div style="height: 150px; overflow-y: scroll;">
             <table class="table table-condensed">
               <colgroup>
                 <col class="span2">
