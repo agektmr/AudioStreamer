@@ -139,18 +139,20 @@ var AudioStreamer = (function() {
       if (typeof this.getBufferCallback === 'function')
         this.getBufferCallback();
 
-      var buffers = [];
+      var buffers = [],
+          that = this;
       for (var ch = 0; ch < this.buffer.length; ch++) {
         buffers.push(this.buffer[ch].shift() || new Float32Array(BUFFER_LENGTH));
       }
       if (this.socket) { // only player have socket set
-        var buffer = binarize.pack({
+        binarize.pack({
           user_id:AttendeeManager.getUserId(),
           ch_num:buffers.length,
           buffer_length:BUFFER_LENGTH,
           buffer_array:buffers
+        }, function(buffer) {
+          that.socket.send(buffer);
         });
-        this.socket.send(buffer);
       }
       for (ch = 0; ch < buffers.length; ch++) {
         event.outputBuffer.getChannelData(ch).set(buffers[ch]);
@@ -182,18 +184,20 @@ var AudioStreamer = (function() {
   };
   InputSource.prototype = {
     onaudioprocess: function(event) {
-      var buffers = [];
+      var buffers = [],
+          that = this;
       for (var i = 0; i < event.inputBuffer.numberOfChannels; i++) {
         buffers[i] = event.inputBuffer.getChannelData(i);
       }
       if (this.socket) { // only player have socket set
-        var buffer = binarize.pack({
+        binarize.pack({
           user_id:AttendeeManager.getUserId(),
           ch_num:buffers.length,
           buffer_length:BUFFER_LENGTH,
           buffer_array:buffers
+        }, function(buffer) {
+          that.socket.send(buffer);
         });
-        this.socket.send(buffer);
       }
       for (i = 0; i < buffers.length; i++) {
         event.outputBuffer.getChannelData(i).set(buffers[i]);
@@ -277,7 +281,6 @@ console.debug('socket established.');
       var msg = '';
       try {
         if (typeof req.data == 'string') {
-console.debug(req.data);
           // string
           msg = TextMessage.parseMessage(req.data);
           if (msg.type == 'connected') {
@@ -290,13 +293,14 @@ console.debug(req.data);
           that.onMessage(msg);
         } else {
           // binary
-          msg = binarize.unpack(req.data);
-          if (msg.user_id == AttendeeManager.getUserId()) return; // skip if audio is originated from same user
-          var buffers = [];
-          for (var ch = 0; ch < msg.ch_num; ch++) {
-            buffers[ch] = msg.buffer_array[ch];
-          }
-          that.audioListener.source.setBuffer(buffers);
+          binarize.unpack(req.data, function(msg) {
+            if (msg.user_id == AttendeeManager.getUserId()) return; // skip if audio is originated from same user
+            var buffers = [];
+            for (var ch = 0; ch < msg.ch_num; ch++) {
+              buffers[ch] = msg.buffer_array[ch];
+            }
+            that.audioListener.source.setBuffer(buffers);
+          });
         }
       } catch(e) {
         throw e;

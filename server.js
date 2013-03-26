@@ -21,6 +21,7 @@ Author: Eiji Kitamura (agektmr@gmail.com)
  */
 
 var express = require('express'),
+    binarize = require('binarize.js'),
     routes = require('./routes'),
     WebSocketServer = require('ws').Server;
 
@@ -76,6 +77,7 @@ app.listen(3000, function() {
           binary[i] = req.readUInt8(i);
         }
         for (var j = 0; j < sessions.length; j++) {
+          if (sessions[j].socket == ws) continue;
           sessions[j].socket.send(binary, {binary:true, mask:false});
         }
       } else {
