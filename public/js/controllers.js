@@ -120,13 +120,13 @@ var AudioStreamerCtrl = function($scope) {
     };
   };
 
-  $('#text').keydown(function(e) {
+  document.querySelector('#text').onkeydown = function(e) {
     if (e.keyCode == 13) {
       $scope.send_message();
       e.stopPropagation();
       e.preventDefault();
     }
-  });
+  };
 };
 
 var AudioCtrl = function($scope) {

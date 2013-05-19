@@ -48,7 +48,7 @@
         <input type="button" id="play_stop" value="{{play_stop_button}}" class="btn btn-primary" ng-show="websocket_started&&mode=='file'" ng-disabled="!source_connected" ng-click="play_stop()" />
         <span ng-show="mode=='file'&&websocket_started">Drop audio file and hit "Play"</span>
         <input type="button" id="connect_audio_input" value="{{connect_audio_input_button}}" class="btn btn-primary" ng-show="websocket_started&&mode=='mic'" ng-disabled="source_connected" ng-click="connect_audio_input()" />
-        <div id="visualizer" style="width: 580px; height:178px;"></div>
+        <div id="visualizer" style="width: 100%; height:178px;"></div>
       </div>
       <div id="conversation">
         <div>

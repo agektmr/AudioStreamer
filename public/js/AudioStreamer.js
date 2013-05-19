@@ -271,7 +271,6 @@ var AudioStreamer = (function() {
     this.websocket = new WebSocket(ws_host+'/socket');
     this.websocket.onopen = function() {
       that.websocket.binaryType = 'arraybuffer';
-console.debug('socket established.');
       if (typeof callback == 'function') {
         callback();
       }
@@ -319,9 +318,10 @@ console.debug('socket established.');
     this.audioListener = new AudioPlayer(listenerSource, this.audioMerger);
     this.audioListener.listen();
     // TODO: move visual element to outside
+    var elem = document.getElementById('visualizer');
     this.visualizer = new SpectrumVisualizer(audioContext, {
-      elem: document.getElementById('visualizer'),
-      width: 580,
+      elem: elem,
+      width: getComputedStyle(elem).width,
       height: 178
     });
     this.visualizer.connect(this.audioMerger, audioContext.destination);
