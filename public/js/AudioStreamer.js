@@ -320,9 +320,7 @@ var AudioStreamer = (function() {
     // TODO: move visual element to outside
     var elem = document.getElementById('visualizer');
     this.visualizer = new SpectrumVisualizer(audioContext, {
-      elem: elem,
-      width: getComputedStyle(elem).width,
-      height: 178
+      elem: elem
     });
     this.visualizer.connect(this.audioMerger, audioContext.destination);
   };

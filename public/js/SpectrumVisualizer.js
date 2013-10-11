@@ -15,14 +15,16 @@ limitations under the License.
 
 Author: Eiji Kitamura (agektmr@gmail.com)
 */
-'use strict';
-
 var SpectrumVisualizer = (function() {
   var visualizers = [],
       requestAnimationFrame = window.requestAnimationFrame ||
                               window.webkitRequestAnimationFrame ||
                               window.mozRequestAnimationFrame;
+  var WIDTH = 400, HEIGHT = 200,
+      average = 0, previous = 0;
   var analyse = function() {
+    // var now = window.performance.now();
+    // average = (average + (now - previous))/2;
     for (var i = 0; i < visualizers.length; i++) {
       // remove visualizer if deleted without disconnection
       if (!visualizers[i].analyser) {
@@ -33,33 +35,37 @@ var SpectrumVisualizer = (function() {
       visualizers[i].analyser.getByteFrequencyData(freqByteData);
       draw.call(visualizers[i], freqByteData);
     }
+    // previous = now;
     requestAnimationFrame(analyse);
   };
 
   var clear = function() {
-    this.cc.clearRect(0, 0, this.width, this.height);
+    this.cc.clearRect(0, 0, WIDTH, HEIGHT);
   };
 
   var draw = function(freq) {
     var length = freq.length;
     clear.call(this);
+    var command = '';
 
     // Draw rectangle for each frequency bin.
-    this.cc.beginPath();
-    for (var i = 0; i < this.width; i++) {
-      var index = ~~(length / this.width * i);
-      var value =  ~~(this.height - ((freq[index] || 0) / 256 * this.height));
-      if (i === 0) this.cc.moveTo(0, value);
-      this.cc.lineTo(i + 1, value);
+    command += 'cc.beginPath();';
+    for (var i = 0; i < WIDTH; i++) {
+      var index = ~~(length / WIDTH * i);
+      var value =  ~~(HEIGHT - ((freq[index] || 0) / 256 * HEIGHT));
+      if (i === 0) {
+        command += 'cc.moveTo(0, '+value+');';
+      }
+      command += 'cc.lineTo('+(i+1)+', '+value+');';
     }
-    this.cc.stroke();
+    command += 'cc.stroke();';
+    var drawFunc = new Function("cc", command);
+    drawFunc(this.cc);
   };
 
   /*
    * params {
    *   elem
-   *   width
-   *   height
    *   smoothingTimeConstant
    * }
    */
@@ -72,12 +78,9 @@ var SpectrumVisualizer = (function() {
       canvas = document.createElement('canvas');
       params.elem.appendChild(canvas);
     }
-    canvas.setAttribute('width', params.width || 400);
-    canvas.setAttribute('height', params.height || 200);
+    canvas.width = WIDTH;
+    canvas.height = HEIGHT;
     this.cc = canvas.getContext('2d');
-
-    this.width = parseInt(canvas.width);
-    this.height = parseInt(canvas.height);
 
     this.analyser = this.ac.createAnalyser();
     this.analyser.smoothingTimeConstant = params.smoothingTimeConstant || 0.3;
