@@ -20,7 +20,7 @@ var SpectrumVisualizer = (function() {
       requestAnimationFrame = window.requestAnimationFrame ||
                               window.webkitRequestAnimationFrame ||
                               window.mozRequestAnimationFrame;
-  var WIDTH = 400, HEIGHT = 200,
+  var WIDTH = 500, HEIGHT = 256,
       average = 0, previous = 0;
   var analyse = function() {
     // var now = window.performance.now();
