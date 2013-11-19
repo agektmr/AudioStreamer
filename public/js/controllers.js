@@ -20,7 +20,7 @@ Author: Eiji Kitamura (agektmr@gmail.com)
 var WS_HOST = window.location.href.replace(/(http|https)(:\/\/.*?)\//, 'ws$2'),
     as = null;
 
-var audioContext = window.audioContext ? new window.audioContext() :
+var audioContext = window.AudioContext ? new window.AudioContext() :
                    window.webkitAudioContext ? new window.webkitAudioContext() :
                    window.mozAudioContext ? new window.mozAudioContext() :
                    window.oAudioContext ? new window.oAudioContext() :
