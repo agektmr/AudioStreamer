@@ -129,7 +129,7 @@ var AudioStreamer = (function() {
 
   var AudioSource = function() {
     this.buffer = [[], []];
-    this.js = audioContext.createJavaScriptNode(BUFFER_LENGTH, 2, 2);
+    this.js = audioContext.createScriptProcessor(BUFFER_LENGTH, 2, 2);
     this.js.onaudioprocess = this.onaudioprocess.bind(this);
     this.socket = null;
     this.getBufferCallback = null;
