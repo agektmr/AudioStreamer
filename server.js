@@ -22,31 +22,36 @@ Author: Eiji Kitamura (agektmr@gmail.com)
 
 var express = require('express'),
     binarize = require('binarize.js'),
+    bodyParser = require('body-parser'),
+    methodOverride = require('method-override'),
     routes = require('./routes'),
+    path = require('path'),
+    errorHandler = require('errorhandler'),
     WebSocketServer = require('ws').Server;
 
-var app = module.exports = express.createServer();
+var app = express();
 
-app.configure(function(){
-  app.set('views', __dirname + '/views');
-  app.set('view engine', 'ejs');
-  app.use(express.bodyParser());
-  app.use(express.methodOverride());
-  app.use(app.router);
-  app.use(express.static(__dirname + '/public'));
-});
+app.set('port', process.env.PORT || 8000);
+app.set('views', path.join(__dirname, 'views'));
+app.set('view engine', 'ejs');
+app.use(bodyParser());
+app.use(methodOverride());
+app.use(express.static(path.join(__dirname, 'public')));
 
-app.configure('development', function(){
-  app.use(express.errorHandler({ dumpExceptions: true, showStack: true }));
-});
-
-app.configure('production', function(){
-  app.use(express.errorHandler());
-});
+if (app.get('env') == 'development') {
+  app.use(errorHandler({ dumpExceptions: true, showStack: true }));
+} else if (app.get('env') == 'production') {
+  app.use(errorHandler());
+}
 
 // Routes
 
-app.get('/', routes.index);
+app.get('/', function (req, res) {
+  res.render('layout', {
+    title: 'Audio Stream Experiment',
+    layout: 'layout'
+  });
+})
 // app.get('/play', routes.play);
 
 var sessions = [],
@@ -63,12 +68,16 @@ var getUsersList = function() {
   return users_list;
 };
 
-app.listen(3000, function() {
+app.listen(8000, function() {
+  console.log('opening websocket connection...');
   var socket = new WebSocketServer({server:app, path:'/socket'});
   socket.on('connection', function(ws) {
     var _name = '';
     var _user_id = user_id++; // increment user_id on connection
     console.log('a user opened a connection.');
+    ws.on('open', function() {
+      console.log('connection opened');
+    });
     ws.on('message', function(req, flags) {
       if (flags.binary) {
         var length = req.length;
@@ -150,4 +159,4 @@ app.listen(3000, function() {
   });
 });
 
-console.log("Express server listening on port %d in %s mode", app.address().port, app.settings.env);
+console.log("Express server listening on port %d in %s mode", app.get('port'), app.get('env'));
